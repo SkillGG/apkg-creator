@@ -1,6 +1,7 @@
 /// @ts-check
 /// <reference path="./genanki.d.ts" />
 /// <reference path="./idb.js" />
+/// <reference path="./kso.js" />
 
 const $ = (/** @type {string} */ s) => document.querySelector(`#${s}`);
 const $$ = (/** @type {string} */ s) => document.querySelector(s);
@@ -189,7 +190,12 @@ const kanjiGuessModel = new Model({
         {
             name: "Card 1",
             qfmt: "{{Front}}",
-            afmt: `{{FrontSide}}
+            afmt: `<style>
+@font-face {
+  font-family: KanjiStrokeOrder;
+  src: url("_kanjiStrokeOrder.ttf");
+}
+            </style>{{FrontSide}}
 
 <hr id=answer>
 
@@ -243,6 +249,7 @@ const globalDeck = new Deck(
 const saveDeckToFile = (/** @type {Deck} */ deck) => {
     let p = new Package();
     p.addDeck(deck);
+    p.addMediaFile("_kanjiStrokeOrder.ttf");
 
     p.writeToFile(`${IDBname}.apkg`);
 };
