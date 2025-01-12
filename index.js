@@ -1,7 +1,6 @@
 /// @ts-check
 /// <reference path="./genanki.d.ts" />
 /// <reference path="./idb.js" />
-/// <reference path="./kso.js" />
 
 const $ = (/** @type {string} */ s) => document.querySelector(`#${s}`);
 const $$ = (/** @type {string} */ s) => document.querySelector(s);
@@ -192,7 +191,7 @@ const kanjiGuessModel = new Model({
             qfmt: "{{Front}}",
             afmt: `<style>
 @font-face {
-  font-family: KanjiStrokeOrder;
+  font-family: KanjiStrokeOrders;
   src: url("_kanjiStrokeOrder.ttf");
 }
             </style>{{FrontSide}}
