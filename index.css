@@ -1,0 +1,40 @@
+table {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
+table th,
+table td,
+table tr {
+    border: 1px solid black;
+}
+
+table tbody tr > td:nth-child(2) {
+    white-space: nowrap;
+}
+
+#notecreator {
+    display: flex;
+}
+
+button {
+    flex-shrink: 1;
+}
+
+body {
+    display: flex;
+    width: 95vw;
+    margin-inline: auto;
+}
+
+#list {
+    flex-grow: 1;
+}
+
+#creator {
+    flex-shrink: 0;
+}
+
+dialog[open] {
+    display: flex;
+}

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anki deck creator</title>
+    <!-- for creating and exporting anki package file -->
+    <script src='genanki.js'></script>
+    <!-- sqlite -->
+    <script src='js/sql/sql.js'></script>
+
+    <!-- File saver -->
+    <script src="js/filesaver/FileSaver.min.js"></script>
+
+    <!-- jszip for .apkg -->
+    <script src="js/jszip.min.js"></script>
+
+    <script src="./idb.js"></script>
+    <link rel="stylesheet" href="index.css?">
+
+</head>
+
+<body>
+    <div id="list">
+        <table>
+            <thead id="fieldlist"></thead>
+            <tbody id="notes"></tbody>
+        </table>
+    </div>
+    <br />
+    </div>
+    <div id="creator">
+        <button onclick="openDialog()">Change kanji store</button><br />
+        <label id="decklabel">Deck label:<input id="decklabel" /></label><button
+            onclick="applyNewDeckName()">Save</button>
+        <dialog></dialog>
+        <div id="notecreator">
+        </div>
+        <div>
+            <div>
+                <textarea></textarea>
+                <button onclick="parseCards()">Parse</button>
+            </div>
+        </div>
+
+        <button onclick="saveDeck()">Save deck</button>
+    </div>
+
+    <script defer src="index.js"></script>
+
+</body>
+
+</html>
