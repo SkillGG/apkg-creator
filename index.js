@@ -28,6 +28,11 @@ const deckDatas = {
 };
 
 /** @type {HTMLInputElement | null} */
+const deckLabelInput = document.querySelector("#decklabel_input");
+if (deckLabelInput) {
+    deckLabelInput.value = deckDatas[IDBname].label ?? IDBname;
+}
+/** @type {HTMLInputElement | null} */
 const deckLabel = document.querySelector("#decklabel");
 if (deckLabel) {
     deckLabel.title = IDBname;
@@ -112,8 +117,8 @@ const addDeck = (name) => {
 };
 
 const applyNewDeckName = () => {
-    if (deckLabel) {
-        const newDeckName = deckLabel.value;
+    if (deckLabelInput) {
+        const newDeckName = deckLabelInput.value;
         if (newDeckName) {
             const prevDatas = deckDatas[IDBname];
             if (prevDatas) {
