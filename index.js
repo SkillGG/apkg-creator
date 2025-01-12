@@ -163,6 +163,23 @@ Promise.all([
     loaded();
 });
 
+const basicModel = new Model({
+    name: "Kanji Guess, srokeless",
+    id: "1736639633130",
+    flds: [{ name: "Front" }, { name: "Back" }],
+    req: [[0, "all", [0]]],
+    tmpls: [
+        {
+            name: "Card 1",
+            qfmt: "{{Front}}",
+            afmt: `{{FrontSide}}
+<hr id=answer>
+
+{{Back}}`,
+        },
+    ],
+});
+
 const kanjiGuessModel = new Model({
     name: "Kanji Guess",
     id: "1736639633108",
@@ -183,13 +200,51 @@ const kanjiGuessModel = new Model({
     ],
 });
 
-const globalDeck = new Deck(1736639633110, "文部科学省試験デッキ");
+/** @type {Record<number, Model>} */
+const models = { 0: kanjiGuessModel, 1: basicModel };
+
+const modelSelect = document.querySelector("select");
+if (!modelSelect) {
+    throw "No modelSelect!";
+}
+window.onkeydown = (e) => {
+    console.log(e.code);
+    if (e.code === "KeyR" && e.altKey) {
+        modelSelect.value = `${
+            (parseInt(modelSelect.value) + 1) % Object.keys(models).length
+        }`;
+        modelSelect.dispatchEvent(new Event("change"));
+    }
+};
+const getModel = () => {
+    return models[parseInt(modelSelect.value)] ?? models[0];
+};
+for (const key in models) {
+    const model = models[key];
+    const option = document.createElement("option");
+    option.value = key;
+    option.innerText = model.props.name;
+    modelSelect.append(option);
+    modelSelect.value = localStorage.getItem("model") ?? "0";
+    modelSelect.onchange = () => {
+        localStorage.setItem("model", modelSelect.value);
+        refreshNoteCreator();
+        showNoteList();
+        /** @type {HTMLInputElement} */
+        (notecreator?.querySelector("input:not([type='checkbox'])"))?.focus();
+    };
+}
+
+const globalDeck = new Deck(
+    deckDatas[IDBname]?.id ?? DEFAULT_DECK_DATA[DEFAULT_DB].id,
+    deckDatas[IDBname]?.label ?? DEFAULT_DECK_DATA[DEFAULT_DB].label
+);
 
 const saveDeckToFile = (/** @type {Deck} */ deck) => {
     let p = new Package();
     p.addDeck(deck);
 
-    p.writeToFile("deck.apkg");
+    p.writeToFile(`${IDBname}.apkg`);
 };
 
 let cardsInTick = 0;
@@ -202,23 +257,33 @@ const showNoteList = () => {
     if (!fieldlist) throw "No fieldlist!";
     if (!notesTable) throw "No notesTable!";
 
-    fieldlist.innerHTML = `${kanjiGuessModel.props.flds
-        .map((f) => `<th>${f.name}</th>`)
+    fieldlist.innerHTML = `${getModel()
+        .props.flds.map((f) => `<th>${f.name}</th>`)
         .join("")}`;
 
     notesTable.innerHTML = "";
 
     globalDeck.notes.forEach((note) => {
+        if (note.model.props.id !== getModel().props.id) return;
         const noteTr = document.createElement("tr");
+        const ispossibleduplicate = globalDeck.notes.some((xnote) => {
+            if (xnote.id === note.id) return false;
+            return (
+                note.fields[1] === xnote.fields[1] ||
+                note.fields[0] === xnote.fields[0]
+            );
+        });
+        if (ispossibleduplicate) {
+            noteTr.style.backgroundColor = "orange";
+        }
         noteTr.innerHTML = `
 ${note.model.props.flds
-    .map(
-        (f, i) =>
-            `<td title='${note.id}'>${note.fields[i].substring(
-                0,
-                ELLIPSIS_THRESHOLD
-            )}${note.fields[i].length > ELLIPSIS_THRESHOLD ? "..." : ""}</td>`
-    )
+    .map((f, i) => {
+        return `<td title='${note.id}'>${note.fields[i].substring(
+            0,
+            ELLIPSIS_THRESHOLD
+        )}${note.fields[i].length > ELLIPSIS_THRESHOLD ? "..." : ""}</td>`;
+    })
     .join("")}<td><button onclick='removeCard(${
             note.id
         })'>Remove</button></td>`;
@@ -242,7 +307,8 @@ const loaded = () => {
     loadCardsFromDB().then((cards) => {
         console.log(cards);
         for (const card of cards) {
-            addCardToDeck(kanjiGuessModel.note(card.note.fields, []), card.id);
+            const model = models[card.type] ?? kanjiGuessModel;
+            addCardToDeck(model.note(card.note.fields, []), card.id);
         }
         showNoteList();
     });
@@ -250,62 +316,94 @@ const loaded = () => {
 
 const notecreator = $("notecreator");
 if (!notecreator) throw "No notecreator";
-notecreator.append(
-    ...kanjiGuessModel.props.flds.map(({ name }) => {
-        const label = document.createElement("label");
-        label.style.cssText = "display: block";
-        label.id = `${name}_input`;
-        label.dataset.field = name;
-        const div = document.createElement("div");
-        div.innerText = name;
-        const IMEcheckbox = document.createElement("input");
-        IMEcheckbox.type = "checkbox";
-        IMEcheckbox.checked = !localStorage.getItem(`noIME_${name}`);
-        div.append(IMEcheckbox);
-        const input = document.createElement("input");
-        label.append(div, input);
-        input.type = IMEcheckbox.checked ? "text" : "tel";
-        // @ts-ignore
-        input.style.imeMode = IMEcheckbox.checked ? "active" : "unset";
-        IMEcheckbox.onchange = (e) => {
+const refreshNoteCreator = () => {
+    notecreator.innerHTML = "";
+    notecreator.append(
+        ...getModel().props.flds.map(({ name }) => {
+            const label = document.createElement("label");
+            label.style.cssText = "display: block";
+            label.id = `${name}_input`;
+            label.dataset.field = name;
+            const div = document.createElement("div");
+            div.innerText = name;
+            const IMEcheckbox = document.createElement("input");
+            IMEcheckbox.type = "checkbox";
+            IMEcheckbox.checked = !localStorage.getItem(`noIME_${name}`);
+            div.append(IMEcheckbox);
+            const input = document.createElement("input");
+            label.append(div, input);
+            input.type = IMEcheckbox.checked ? "text" : "tel";
             // @ts-ignore
             input.style.imeMode = IMEcheckbox.checked ? "active" : "unset";
-            if (IMEcheckbox.checked) {
-                // turn on IM
-                input.type = "text";
-                localStorage.removeItem(`noIME_${name}`);
-            }
-            if (!IMEcheckbox.checked) {
-                // turn off IME
-                input.type = "tel";
-                localStorage.setItem(`noIME_${name}`, "true");
-            }
-        };
-        return label;
-    })
-);
-/** @type {NodeListOf<HTMLInputElement>} */
-const inputs = notecreator.querySelectorAll(
-    "input[type='text'],input[type='tel']"
-);
-for (let i = 0; i < inputs.length; i++) {
-    if (i === inputs.length - 1) {
-        inputs[i].onkeydown = (e) => {
-            if (e.code === "Enter") {
-                addCard.click();
-                inputs[0].focus();
-            }
-        };
-    } else {
-        inputs[i].onkeydown = (e) => {
-            if (e.code === "Enter") inputs[i + 1].focus();
-        };
+            IMEcheckbox.onchange = (e) => {
+                // @ts-ignore
+                input.style.imeMode = IMEcheckbox.checked ? "active" : "unset";
+                if (IMEcheckbox.checked) {
+                    // turn on IM
+                    input.type = "text";
+                    localStorage.removeItem(`noIME_${name}`);
+                }
+                if (!IMEcheckbox.checked) {
+                    // turn off IME
+                    input.type = "tel";
+                    localStorage.setItem(`noIME_${name}`, "true");
+                }
+            };
+            return label;
+        })
+    );
+    /** @type {NodeListOf<HTMLInputElement>} */
+    const inputs = notecreator.querySelectorAll(
+        "input[type='text'],input[type='tel']"
+    );
+    for (let i = 0; i < inputs.length; i++) {
+        if (i === inputs.length - 1) {
+            inputs[i].onkeydown = (e) => {
+                if (e.code === "Enter" && e.ctrlKey) {
+                    addCard.click();
+                    inputs[0].focus();
+                }
+            };
+        } else {
+            inputs[i].onkeydown = (e) => {
+                if (e.code === "Enter" && e.ctrlKey) inputs[i + 1].focus();
+            };
+        }
     }
-}
+    const addCard = document.createElement("button");
 
-const addCard = document.createElement("button");
+    addCard.innerHTML = "Add";
 
-addCard.innerHTML = "Add";
+    addCard.onclick = () => {
+        /** @type {[string, string][]} */
+        const field_values = Array.from(
+            notecreator.querySelectorAll("label")
+        ).map((label) => {
+            /** @type {HTMLInputElement|null} */
+            const input = label.querySelector("input:not([type='checkbox'])");
+            /** @type {[string, string]} */
+            const ret = [label.dataset.field ?? "", input?.value ?? ""];
+            return ret;
+        });
+
+        if (field_values.some((f) => f[1].trim() === "")) throw "Empty field!";
+
+        const note = getModel().note(
+            field_values.map((f) =>
+                f[1]
+                    .replaceAll("￥", "/ ")
+                    .replaceAll("<", "&lt;")
+                    .replaceAll(">", "&gt;")
+            ),
+            []
+        );
+
+        addCardToDeck(note);
+    };
+
+    notecreator.append(addCard);
+};
+refreshNoteCreator();
 
 const takenIds = [];
 
@@ -319,7 +417,7 @@ const addCardToDeck = (note, id = 0) => {
         /** @type {CardData} */
         const data = {
             id: new Date().getTime(),
-            type: 0,
+            type: parseInt(modelSelect.value) ?? 0,
             note: { fields: note.fields },
         };
         while (takenIds.includes(data.id)) {
@@ -370,30 +468,6 @@ const removeCard = (id) => {
     };
 };
 
-addCard.onclick = () => {
-    /** @type {[string, string][]} */
-    const field_values = Array.from(notecreator.querySelectorAll("label")).map(
-        (label) => {
-            /** @type {HTMLInputElement|null} */
-            const input = label.querySelector("input:not([type='checkbox'])");
-            /** @type {[string, string]} */
-            const ret = [label.dataset.field ?? "", input?.value ?? ""];
-            return ret;
-        }
-    );
-
-    if (field_values.some((f) => f[1].trim() === "")) throw "Empty field!";
-
-    const note = kanjiGuessModel.note(
-        field_values.map((f) => f[1]),
-        []
-    );
-
-    addCardToDeck(note);
-};
-
-notecreator.append(addCard);
-
 const parseCards = () => {
     /** @type {HTMLTextAreaElement | null} */
     const area = document.querySelector("textarea");
@@ -412,7 +486,7 @@ const parseCards = () => {
             const { word, reading, meaning } = groups;
             if (!word.trim() || !reading.trim() || !meaning.trim()) continue;
             addCardToDeck(
-                kanjiGuessModel.note(
+                getModel().note(
                     [`${reading.trim()} - ${meaning.trim()}`, `${word.trim()}`],
                     []
                 )
