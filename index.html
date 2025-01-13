@@ -24,13 +24,16 @@
 
 <body>
     <div id="list">
+        <div>
+            <button onclick="showCopyToDeck()">Copy selected to deck</button>
+            <button onclick="removeSelected()">Remove selected to deck</button>
+        </div>
         <table>
             <thead id="fieldlist"></thead>
             <tbody id="notes"></tbody>
         </table>
     </div>
     <br />
-    </div>
     <div id="creator">
         <button onclick="openDialog()">Change kanji store</button><br />
         <label id="decklabel">Deck label:<input id="decklabel_input" /></label><button

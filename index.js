@@ -44,52 +44,143 @@ if (nameLabel)
 
 /** @type {HTMLDialogElement | null} */
 const dialog = document.querySelector("dialog");
-if (dialog) {
-    // close on backdrop click
-    dialog.addEventListener("click", function (event) {
-        var rect = dialog.getBoundingClientRect();
-        var isInDialog =
-            rect.top <= event.clientY &&
-            event.clientY <= rect.top + rect.height &&
-            rect.left <= event.clientX &&
-            event.clientX <= rect.left + rect.width;
-        if (!isInDialog) {
-            dialog.close();
+/**
+ * @param {(db:string)=>void} click
+ * @param {boolean=} canAdd
+ * @param {()=>void} close
+ */
+const populateDialog = (click, canAdd = true, close = () => {}) => {
+    if (dialog) {
+        dialog.innerHTML = "";
+        // close on backdrop click
+        dialog.addEventListener("click", function (event) {
+            var rect = dialog.getBoundingClientRect();
+            var isInDialog =
+                rect.top <= event.clientY &&
+                event.clientY <= rect.top + rect.height &&
+                rect.left <= event.clientX &&
+                event.clientX <= rect.left + rect.width;
+            if (!isInDialog) {
+                dialog.close();
+                close();
+            }
+        });
+        // default db button
+        const defaultBtn = document.createElement("button");
+        defaultBtn.innerText = deckDatas[DEFAULT_DB].label ?? "(default)";
+        defaultBtn.onclick = () => {
+            click(DEFAULT_DB);
+        };
+        defaultBtn.classList.add("dbbtn");
+        defaultBtn.style.display = IDBname === DEFAULT_DB ? "none" : "";
+
+        // add DB button
+        const addBtn = document.createElement("button");
+        addBtn.innerText = "Add";
+        addBtn.classList.add("addbtn");
+        addBtn.onclick = () => {
+            const name = prompt("New DB name:");
+            addDeck(name);
+        };
+
+        const options = [
+            defaultBtn,
+            ...dbs.map((db) => {
+                // user-defined db buttons
+                const button = document.createElement("button");
+                button.innerText = deckDatas[db].label ?? db.replace("_", " ");
+                button.classList.add("dbbtn");
+                button.onclick = () => {
+                    click(db);
+                };
+                button.style.display = IDBname === db ? "none" : "";
+
+                return button;
+            }),
+        ];
+        dialog.append(...options);
+        if (canAdd) dialog.append(addBtn);
+    }
+};
+
+/**
+ *
+ * @param {string} deck
+ * @param {Note[]} notes
+ */
+const copyToDeck = async (deck, notes) => {
+    if (!modelSelect) return;
+    console.log("Copying ", notes, " to deck ", deck);
+    const newIDB = await createAnIDB(deck);
+    const db = newIDB.getDB();
+    const usedIDs = [];
+    const done = [];
+    /**
+     * @param {()=>void} action
+     */
+    const checkDone = (action) => {
+        if (done.every((q) => q.status)) {
+            action();
         }
-    });
-    // default db button
-    const defaultBtn = document.createElement("button");
-    defaultBtn.innerText = deckDatas[DEFAULT_DB].label ?? "(default)";
-    defaultBtn.onclick = () => {
-        swapDeck(DEFAULT_DB);
     };
-    defaultBtn.classList.add("dbbtn");
+    for (const note of notes) {
+        const status = { status: false };
+        done.push(status);
+        const data = {
+            id: new Date().getTime(),
+            type: parseInt(modelSelect.value) ?? 0,
+            note: { fields: note.fields },
+        };
+        while (usedIDs.includes(data.id)) {
+            data.id = new Date().getTime();
+        }
+        usedIDs.push(data.id);
+        const query = db
+            .transaction("cards", "readwrite")
+            .objectStore("cards")
+            .put(data);
+        query.onsuccess = () => {
+            status.status = true;
+            checkDone(() => {
+                dialog?.close();
+            });
+        };
+    }
+};
 
-    // add DB button
-    const addBtn = document.createElement("button");
-    addBtn.innerText = "Add";
-    addBtn.classList.add("addbtn");
-    addBtn.onclick = () => {
-        const name = prompt("New DB name:");
-        addDeck(name);
-    };
+const getSelectedNotes = () => {
+    /** @type {NodeListOf<HTMLInputElement>} */
+    const selectedNotes = document.querySelectorAll(
+        "input[type='checkbox'].select_note"
+    );
+    /** @type {Note[]} */
+    const notes = [];
+    for (const note of selectedNotes) {
+        if (!note.checked) continue;
+        const noteid = parseInt(note.dataset?.noteid ?? "0");
+        if (noteid) {
+            const noteobj = globalDeck.notes.find((n) => n.id === noteid);
+            if (noteobj) {
+                notes.push(noteobj);
+            }
+        }
+    }
+    return notes;
+};
 
-    const options = [
-        defaultBtn,
-        ...dbs.map((db) => {
-            // user-defined db buttons
-            const button = document.createElement("button");
-            button.innerText = deckDatas[db].label ?? db.replace("_", " ");
-            button.classList.add("dbbtn");
-            button.onclick = () => {
-                swapDeck(db);
-            };
-            return button;
-        }),
-        addBtn,
-    ];
-    dialog.append(...options);
-}
+const removeSelected = () => {
+    for (const note of getSelectedNotes()) {
+        if (note.id) removeCard(note.id);
+    }
+};
+
+const showCopyToDeck = () => {
+    const notes = getSelectedNotes();
+    populateDialog((deck) => {
+        copyToDeck(deck, notes);
+    }, false);
+    dialog?.showModal();
+};
 
 /**
  * @param {string} name
@@ -138,6 +229,7 @@ const applyNewDeckName = () => {
 };
 
 const openDialog = () => {
+    populateDialog((db) => swapDeck(db));
     if (dialog) {
         dialog.showModal();
     }
@@ -198,7 +290,7 @@ const kanjiGuessModel = new Model({
 
 <hr id=answer>
 
-<span style="font-size:20vw; font-family: KanjiStrokeOrders">
+<span style="font-size: 40vw; font-family: KanjiStrokeOrders">
 {{Back}}
 </span>`,
         },
@@ -255,6 +347,16 @@ const saveDeckToFile = (/** @type {Deck} */ deck) => {
 
 let cardsInTick = 0;
 
+const toggleAllNotes = () => {
+    /** @type {NodeListOf<HTMLInputElement>} */
+    const notes = document.querySelectorAll("input.select_note");
+    const allSelected = Array.from(notes).every((n) => n.checked);
+    console.log(allSelected);
+    for (const note of notes) {
+        note.checked = allSelected ? false : true;
+    }
+};
+
 const showNoteList = () => {
     const fieldlist = $("fieldlist");
 
@@ -263,7 +365,7 @@ const showNoteList = () => {
     if (!fieldlist) throw "No fieldlist!";
     if (!notesTable) throw "No notesTable!";
 
-    fieldlist.innerHTML = `${getModel()
+    fieldlist.innerHTML = `<th><button onclick='toggleAllNotes()'>&nbsp;</button></th>${getModel()
         .props.flds.map((f) => `<th>${f.name}</th>`)
         .join("")}`;
 
@@ -282,7 +384,9 @@ const showNoteList = () => {
         if (ispossibleduplicate) {
             noteTr.style.backgroundColor = "orange";
         }
-        noteTr.innerHTML = `
+        noteTr.innerHTML = `<td><input class='select_note' data-noteid='${
+            note?.id ?? 0
+        }' type='checkbox'/></td>
 ${note.model.props.flds
     .map((f, i) => {
         return `<td title='${note.id}'>${note.fields[i].substring(

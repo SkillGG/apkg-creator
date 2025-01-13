@@ -9,7 +9,7 @@ table tr {
     border: 1px solid black;
 }
 
-table tbody tr > td:nth-child(2) {
+table tbody tr > td:nth-child(3) {
     white-space: nowrap;
 }
 
