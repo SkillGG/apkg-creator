@@ -195,11 +195,11 @@ type Field = {
 };
 
 class Note {
-    id?: number;
     model: Model;
     fields: string[];
     tags: string[] | null;
-    guid: string | null;
+    _guid: string | null;
+    get guid(): string;
     constructor(
         model: Model,
         fields: string[],

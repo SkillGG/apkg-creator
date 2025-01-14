@@ -159,7 +159,9 @@ const getSelectedNotes = () => {
         if (!note.checked) continue;
         const noteid = parseInt(note.dataset?.noteid ?? "0");
         if (noteid) {
-            const noteobj = globalDeck.notes.find((n) => n.id === noteid);
+            const noteobj = globalDeck.notes.find(
+                (n) => n.guid === `${noteid}`
+            );
             if (noteobj) {
                 notes.push(noteobj);
             }
@@ -170,7 +172,7 @@ const getSelectedNotes = () => {
 
 const removeSelected = () => {
     for (const note of getSelectedNotes()) {
-        if (note.id) removeCard(note.id);
+        removeCard(note.guid);
     }
 };
 
@@ -256,8 +258,8 @@ Promise.all([
 });
 
 const basicModel = new Model({
-    name: "Kanji Guess, srokeless",
-    id: "1736639633130",
+    name: `Kanji Guess, srokeless`,
+    id: `${1736639633130}`,
     flds: [{ name: "Front" }, { name: "Back" }],
     req: [[0, "all", [0]]],
     tmpls: [
@@ -273,8 +275,8 @@ const basicModel = new Model({
 });
 
 const kanjiGuessModel = new Model({
-    name: "Kanji Guess",
-    id: "1736639633108",
+    name: `Kanji Guess`,
+    id: `${1736639633108}`,
     flds: [{ name: "Front" }, { name: "Back" }],
     req: [[0, "all", [0]]],
     tmpls: [
@@ -375,7 +377,7 @@ const showNoteList = () => {
         if (note.model.props.id !== getModel().props.id) return;
         const noteTr = document.createElement("tr");
         const ispossibleduplicate = globalDeck.notes.some((xnote) => {
-            if (xnote.id === note.id) return false;
+            if (xnote.guid === note.guid) return false;
             return (
                 note.fields[1] === xnote.fields[1] ||
                 note.fields[0] === xnote.fields[0]
@@ -385,17 +387,17 @@ const showNoteList = () => {
             noteTr.style.backgroundColor = "orange";
         }
         noteTr.innerHTML = `<td><input class='select_note' data-noteid='${
-            note?.id ?? 0
+            note?.guid ?? 0
         }' type='checkbox'/></td>
 ${note.model.props.flds
     .map((f, i) => {
-        return `<td title='${note.id}'>${note.fields[i].substring(
+        return `<td title='${note.guid}'>${note.fields[i].substring(
             0,
             ELLIPSIS_THRESHOLD
         )}${note.fields[i].length > ELLIPSIS_THRESHOLD ? "..." : ""}</td>`;
     })
     .join("")}<td><button onclick='removeCard(${
-            note.id
+            note.guid
         })'>Remove</button></td>`;
         notesTable.appendChild(noteTr);
     });
@@ -535,7 +537,7 @@ const addCardToDeck = (note, id = 0) => {
         }
         takenIds.push(data.id);
         console.log("Adding a new card to deck, ", data);
-        note.id = data.id;
+        note._guid = `${data.id}`;
         const putAction = idb
             .getDB()
             .transaction("cards", "readwrite")
@@ -546,7 +548,7 @@ const addCardToDeck = (note, id = 0) => {
             setTimeout(showNoteList, 10);
         };
     } else {
-        note.id = id;
+        note._guid = `${id}`;
         globalDeck.addNote(note);
         setTimeout(showNoteList, 10);
     }
@@ -560,11 +562,11 @@ const addCardToDeck = (note, id = 0) => {
 };
 
 /**
- * @param {number} id
+ * @param {string} id
  */
 const removeCard = (id) => {
     console.log("removing id, ", id);
-    const card = globalDeck.notes.findIndex((note) => note.id === id);
+    const card = globalDeck.notes.findIndex((note) => note.guid === id);
     if (card >= 0) {
         globalDeck.notes.splice(card, 1);
     }
