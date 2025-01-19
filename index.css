@@ -3,6 +3,11 @@ table {
     border-collapse: collapse;
 }
 
+body {
+    margin: 0;
+    padding: 0;
+}
+
 table th,
 table td,
 table tr {
@@ -29,12 +34,63 @@ body {
 
 #list {
     flex-grow: 1;
+    max-height: 100vh;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#list > div:nth-child(2) {
+    overflow: auto;
 }
 
 #creator {
     flex-shrink: 0;
 }
 
-dialog[open] {
+dialog#deckDialog[open] {
     display: flex;
+}
+
+dialog#parseDialog[open] {
+    display: flex;
+    gap: 10px;
+}
+
+#parseDialog[open] [data-selected="true"] {
+    background-color: #6665;
+}
+
+#parseDialog textarea#code {
+    width: 50vw;
+    height: 50vh;
+}
+
+.parserCode {
+    display: grid;
+}
+
+.parserList > div {
+    text-align: center;
+    margin-block: 5px;
+    padding: 2px;
+    cursor: pointer;
+}
+
+.parserList > div:nth-child(2n) {
+    background-color: #ddd5;
+}
+
+#parseDialog .parserList > div:hover {
+    background-color: #0008;
+    color: white;
+}
+
+.testnote {
+    border: 1px solid black;
+    display: flex;
+}
+
+.testfield {
+    padding: 2px;
 }

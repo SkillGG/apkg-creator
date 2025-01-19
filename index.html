@@ -17,7 +17,6 @@
     <script src="js/jszip.min.js"></script>
 
     <script src="./idb.js"></script>
-    <script src="./kso.js"></script>
     <link rel="stylesheet" href="index.css?">
 
 </head>
@@ -28,17 +27,19 @@
             <button onclick="showCopyToDeck()">Copy selected to deck</button>
             <button onclick="removeSelected()">Remove selected to deck</button>
         </div>
-        <table>
-            <thead id="fieldlist"></thead>
-            <tbody id="notes"></tbody>
-        </table>
+        <div>
+            <table>
+                <thead id="fieldlist"></thead>
+                <tbody id="notes"></tbody>
+            </table>
+        </div>
     </div>
     <br />
     <div id="creator">
         <button onclick="openDialog()">Change kanji store</button><br />
         <label id="decklabel">Deck label:<input id="decklabel_input" /></label><button
             onclick="applyNewDeckName()">Save</button>
-        <dialog></dialog>
+        <dialog id="deckDialog"></dialog>
         <br />Card type:<select id="modelselect"></select>
         <div id="notecreator">
         </div>
@@ -46,10 +47,31 @@
             <div>
                 <textarea></textarea>
                 <button onclick="parseCards()">Parse</button>
+                <dialog id="parseDialog">
+                    <div class="parserList"></div>
+                    <div class="parserCode">
+                        <span>(value) =>{<button style="display: inline; float:right;"
+                                id="removeCodeParser">REMOVE</button></span><br />
+                        &emsp;const noteValues: string[][] = [];
+                        <textarea id="code" style="margin-left: 1em;"></textarea>
+                        &emsp;createNotesFrom(noteValues);<br />
+                        }
+                        <button id="saveParserCode">Save</button>
+                    </div>
+                    <div class="testCode">
+                        value:
+                        <textarea id="testValue"></textarea>
+                        <button id="testBtn">TEST</button>
+                        <div id="codeResult"></div>
+                    </div>
+                </dialog>
+                <button onclick="editParser()">Edit parser code</button>
             </div>
         </div>
 
         <button onclick="saveDeck()">Save deck</button>
+        <button onclick="exportDeck(this)">Export deck</button>
+        <button onclick="importDecks(this)">Import decks</button>
     </div>
 
     <script defer src="index.js"></script>
