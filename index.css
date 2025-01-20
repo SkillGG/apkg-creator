@@ -3,11 +3,6 @@ table {
     border-collapse: collapse;
 }
 
-body {
-    margin: 0;
-    padding: 0;
-}
-
 table th,
 table td,
 table tr {
@@ -27,9 +22,12 @@ button {
 }
 
 body {
-    display: flex;
-    width: 95vw;
     margin: 0;
+    padding: 0;
+    display: flex;
+    min-width: 95vh;
+    max-width: max-content;
+    max-height: 100vh;
 }
 
 #list {
