@@ -29,7 +29,7 @@ button {
 body {
     display: flex;
     width: 95vw;
-    margin-inline: auto;
+    margin: 0;
 }
 
 #list {
@@ -37,6 +37,7 @@ body {
     max-height: 100vh;
     overflow-y: hidden;
     display: flex;
+    min-width: min-content;
     flex-direction: column;
 }
 

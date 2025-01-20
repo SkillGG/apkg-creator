@@ -903,7 +903,7 @@ const editParser = () => {
             event.clientX <= rect.left + rect.width;
         if (!isInDialog) {
             dialog.close();
-            close();
+            //close();
         }
     });
 
