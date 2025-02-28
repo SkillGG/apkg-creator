@@ -1272,7 +1272,7 @@ const openMediaManager = (autoselectname) => {
 
         const indbValue = await mediaManager.media(name);
 
-        console.log("Data from db", indbValue);
+        console.log("Data from db", indbValue.data);
 
         mdata.name.value = name;
         mdata.description.value = indbValue.info.desc ?? "";
@@ -1284,10 +1284,16 @@ const openMediaManager = (autoselectname) => {
 
         const checkIfSaveNeeded = () => {
             let needSave = false;
-            if (indbValue.name !== mdata.name.value) needSave = true;
-            if (indbValue.info.desc !== mdata.description.value)
+            if (indbValue.name !== mdata.name.value) {
                 needSave = true;
-            if (!!indbValue.package !== mdata.package.checked) needSave = true;
+            }
+            if (indbValue.info.desc !== mdata.description.value) {
+                if (indbValue.info.desc && mdata.description.value)
+                    needSave = true;
+            }
+            if (!!indbValue.package !== mdata.package.checked) {
+                needSave = true;
+            }
 
             console.log("need save???", needSave);
 
@@ -1313,8 +1319,13 @@ const openMediaManager = (autoselectname) => {
         if (indbValue.data === null) {
             mdata.info.innerHTML = "No media loaded!";
             mdata.info.style.color = "red";
+            mdata.info.style.display = "block";
             mdata.package.disabled = true;
             mdata.description.disabled = true;
+        } else {
+            mdata.info.style.display = "none";
+            mdata.package.disabled = false;
+            mdata.description.disabled = false;
         }
 
         mdata.save.onclick = async () => {
@@ -1337,14 +1348,18 @@ const openMediaManager = (autoselectname) => {
             fileSelect.onchange = async () => {
                 if (fileSelect.files?.length === 1) {
                     const file = fileSelect.files[0];
-                    console.log(file);
+                    console.log("File:", file);
                     const data = await file.arrayBuffer();
                     console.log(data);
                     /** @type {MediaData} */
                     const mData = {
                         ...indbValue,
                         data: data,
-                        info: { ...indbValue.info, size: data.byteLength },
+                        info: {
+                            ...indbValue.info,
+                            size: data.byteLength,
+                            type: file.type,
+                        },
                     };
                     await mediaManager.putMedia(mData);
                     openMediaManager(mData.name);
