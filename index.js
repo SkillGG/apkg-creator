@@ -697,7 +697,7 @@ const parseCards = () => {
      */
     const noteValues = [];
 
-    eval(getCurParserName());
+    eval(parserCodes[getCurParserName()]);
 
     for (const note of noteValues) {
         addCardToDeck(getModel().note(note, []));
