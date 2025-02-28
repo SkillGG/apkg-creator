@@ -1,3 +1,5 @@
+/// <reference path="./mediaIDB.js" />
+
 class MediaManager {
     constructor() {
         /** @type {string[]} */

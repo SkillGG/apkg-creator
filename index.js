@@ -1,6 +1,7 @@
 /// @ts-check
 /// <reference path="./genanki.d.ts" />
 /// <reference path="./idb.js" />
+/// <reference path="./mediaManager.js" />
 
 /**
  * @template {HTMLElement} [Q = HTMLDivElement]
