@@ -2,9 +2,55 @@
 /// <reference path="./genanki.d.ts" />
 /// <reference path="./idb.js" />
 
-const $ = (/** @type {string} */ s) => document.querySelector(`#${s}`);
-const $$ = (/** @type {string} */ s) => document.querySelector(s);
-const $A = (/** @type {string} */ a) => document.querySelectorAll(a);
+/**
+ * @template {HTMLElement} [Q = HTMLDivElement]
+ * @param {string} q
+ * @returns {Q}
+ */
+const $ = (q) => $$(`#${q}`);
+
+/**
+ * @template {HTMLElement} [Q = HTMLDivElement]
+ * @param {string} query
+ * @returns {Q}
+ */
+const $$ = (query) => {
+    /** @type {Q | null} */
+    const el = document.querySelector(query);
+    if (el) return el;
+    throw `Could not find element with query '${query}'`;
+};
+
+/**
+ * @template {HTMLElement} [Q = HTMLDivElement]
+ * @param {string} query
+ * @returns {NodeListOf<Q>}
+ */
+const $_ = (query) => {
+    /** @type {NodeListOf<Q>} */
+    const els = document.querySelectorAll(query);
+    return els;
+};
+
+/**
+ *
+ * @param {HTMLDialogElement} dialog
+ * @param {()=>void} [closeCallback]
+ */
+const makeDialogBackdropExitable = (dialog, closeCallback) => {
+    dialog.addEventListener("click", function (event) {
+        var rect = dialog.getBoundingClientRect();
+        var isInDialog =
+            rect.top <= event.clientY &&
+            event.clientY <= rect.top + rect.height &&
+            rect.left <= event.clientX &&
+            event.clientX <= rect.left + rect.width;
+        if (!isInDialog) {
+            dialog.close();
+            closeCallback?.();
+        }
+    });
+};
 
 const ELLIPSIS_THRESHOLD = 50;
 const DEFAULT_DB = "kanjiguess";
@@ -27,23 +73,24 @@ const deckDatas = {
     ...deckDatasJSON,
 };
 
-/** @type {HTMLInputElement | null} */
-const deckLabelInput = document.querySelector("#decklabel_input");
+/** @type {HTMLInputElement} */
+const deckLabelInput = $$("#decklabel_input");
 if (deckLabelInput) {
     deckLabelInput.value = deckDatas[IDBname].label ?? IDBname;
 }
-/** @type {HTMLInputElement | null} */
-const deckLabel = document.querySelector("#decklabel");
+/** @type {HTMLInputElement} */
+const deckLabel = $$("#decklabel");
 if (deckLabel) {
     deckLabel.title = IDBname;
 }
 
-const nameLabel = $("dbname");
-if (nameLabel)
+try {
+    const nameLabel = $("dbname");
     nameLabel.innerHTML = IDBname === DEFAULT_DB ? "(default)" : IDBname;
+} catch (e) {}
 
-/** @type {HTMLDialogElement | null} */
-const deckDialog = document.querySelector("dialog#deckDialog");
+/** @type {HTMLDialogElement} */
+const deckDialog = $$("dialog#deckDialog");
 /**
  * @param {(db:string)=>void} click
  * @param {boolean=} canAdd
@@ -53,18 +100,7 @@ const populateDialog = (click, canAdd = true, close = () => {}) => {
     if (deckDialog) {
         deckDialog.innerHTML = "";
         // close on backdrop click
-        deckDialog.addEventListener("click", function (event) {
-            var rect = deckDialog.getBoundingClientRect();
-            var isInDialog =
-                rect.top <= event.clientY &&
-                event.clientY <= rect.top + rect.height &&
-                rect.left <= event.clientX &&
-                event.clientX <= rect.left + rect.width;
-            if (!isInDialog) {
-                deckDialog.close();
-                close();
-            }
-        });
+        makeDialogBackdropExitable(deckDialog);
         // default db button
         const defaultBtn = document.createElement("button");
         defaultBtn.innerText = deckDatas[DEFAULT_DB].label ?? "(default)";
@@ -149,9 +185,7 @@ const copyToDeck = async (deck, notes) => {
 
 const getSelectedNotes = () => {
     /** @type {NodeListOf<HTMLInputElement>} */
-    const selectedNotes = document.querySelectorAll(
-        "input[type='checkbox'].select_note"
-    );
+    const selectedNotes = $_("input[type='checkbox'].select_note");
     /** @type {Note[]} */
     const notes = [];
     for (const note of selectedNotes) {
@@ -300,13 +334,13 @@ const kanjiGuessModel = new Model({
     ],
 });
 
-/** @type {Record<number, Model>} */
+/**
+ * Types of models (saved in idb under note.type)
+ * @type {Record<number, Model>} */
 const models = { 0: kanjiGuessModel, 1: basicModel };
 
-const modelSelect = document.querySelector("select");
-if (!modelSelect) {
-    throw "No modelSelect!";
-}
+/** @type {HTMLSelectElement} */
+const modelSelect = $$("select");
 window.onkeydown = (e) => {
     if (e.code === "KeyR" && e.altKey) {
         modelSelect.value = `${
@@ -318,6 +352,19 @@ window.onkeydown = (e) => {
 const getModel = () => {
     return models[parseInt(modelSelect.value)] ?? models[0];
 };
+
+/**
+ * Create card from CardData
+ * @param {CardData} cardInfo
+ */
+const createCard = (cardInfo) => {
+    const model = models[cardInfo.type];
+    if (model) {
+        return model.note(cardInfo.note.fields, [], `${cardInfo.id}`);
+    }
+    throw "Note is saved with an incorrect model!";
+};
+
 for (const key in models) {
     const model = models[key];
     const option = document.createElement("option");
@@ -339,19 +386,152 @@ const globalDeck = new Deck(
     deckDatas[IDBname]?.label ?? DEFAULT_DECK_DATA[DEFAULT_DB].label
 );
 
-const saveDeckToFile = (/** @type {Deck} */ deck) => {
-    let p = new Package();
-    p.addDeck(deck);
-    p.addMediaFile("_kanjiStrokeOrder.ttf");
+const saveMultipleDecks = () => {
+    /** @type {HTMLDialogElement} */
+    const sMDDialog = $("saveMultiple");
 
-    p.writeToFile(`${IDBname}.apkg`);
+    makeDialogBackdropExitable(sMDDialog);
+
+    sMDDialog.onclick = () => {};
+    const [outList, inList] = [$("outList"), $("inList")];
+    const moveBtn = $("moveToInList");
+    outList.innerHTML = "";
+    inList.innerHTML = "";
+
+    /** @type {HTMLInputElement} */
+    const pkgname = $("packagename");
+
+    if (pkgname.value === "") {
+        pkgname.value = "multideck";
+    }
+
+    const exportBtn = $("exportMultiple");
+    const exportBtnText = exportBtn.innerHTML;
+    exportBtn.onclick = async () => {
+        const decks = Array.from(inList.querySelectorAll("div")).map(
+            (q) => q.dataset.id || -1
+        );
+        const datas = await getAllDeckData((update) => {
+            exportBtn.innerText = update;
+        }, decks.map(Number));
+
+        if (!datas) return;
+
+        console.log(datas);
+
+        /** @type {Deck[]} */
+        const fullDecks = [];
+
+        exportBtn.innerHTML = "Converting to apkg...";
+
+        for (const data in datas) {
+            console.log("Deck name", data);
+            const fdd = datas[data];
+            const deck = FullDeckDataToDeck(fdd);
+            fullDecks.push(deck);
+        }
+
+        saveDecksToFile(fullDecks, pkgname.value, (s, r) => {
+            if (r) exportBtn.innerHTML = exportBtnText;
+            else exportBtn.innerHTML = s;
+        });
+    };
+
+    /** @type {HTMLDivElement | null} */
+    let selectedDeck = null;
+
+    for (const deckData in deckDatas) {
+        const deckName = document.createElement("div");
+        deckName.innerHTML = deckDatas[deckData].label;
+        deckName.dataset.id = `${deckDatas[deckData].id}`;
+        outList.append(deckName);
+        deckName.style.userSelect = "none";
+        deckName.ondblclick = () => {
+            if (deckName.parentElement === outList) {
+                inList.appendChild(deckName);
+            } else {
+                outList.appendChild(deckName);
+            }
+        };
+        deckName.onclick = () => {
+            if (selectedDeck) {
+                selectedDeck.dataset.selected = "0";
+            }
+            selectedDeck = deckName;
+            selectedDeck.dataset.selected = "1";
+            if (deckName.parentElement === outList) {
+                moveBtn.innerText = "=>";
+                moveBtn.onclick = () => {
+                    inList.appendChild(deckName);
+                };
+            } else {
+                moveBtn.innerText = "<=";
+                moveBtn.onclick = () => {
+                    outList.appendChild(deckName);
+                };
+            }
+        };
+    }
+
+    sMDDialog.showModal();
+};
+
+/**
+ *
+ * @param {Deck[]} decks
+ * @param {string} packageName
+ * @param {(s:string, reset?: true)=>void} [updater]
+ */
+const saveDecksToFile = async (decks, packageName, updater) => {
+    try {
+        updater?.("Creating the package...");
+        let p = new Package();
+        for (const deck of decks) {
+            updater?.(`Adding the deck ${deck.name}...`);
+            p.addDeck(deck);
+        }
+        updater?.(`Getting media`);
+        const media = await mediaManager.getPackagedMedia();
+        for (const m of media) {
+            updater?.(`Adding media ${m.name}`);
+            p.addMedia(m.data, m.name);
+        }
+        updater?.(`Saving to file ${packageName}.apkg...`);
+        await p.writeToFile(`${packageName}.apkg`);
+    } finally {
+        updater?.("", true);
+    }
+};
+
+/**
+ *
+ * @param {Deck} deck
+ * @param {(s:string,reset?: true)=>void} [updater]
+ */
+const saveDeckToFile = async (deck, updater) => {
+    try {
+        updater?.("Creating the package...");
+        let p = new Package();
+        updater?.(`Adding the deck ${deck.name}...`);
+        p.addDeck(deck);
+        updater?.(`Getting media`);
+        const media = await mediaManager.getPackagedMedia();
+        for (const m of media) {
+            updater?.(`Adding media ${m.name}`);
+            p.addMedia(m.data, m.name);
+        }
+        updater?.(`Saving to file ${IDBname}.apkg...`);
+        await p.writeToFile(`${IDBname}.apkg`);
+    } finally {
+        updater?.("", true);
+    }
 };
 
 let cardsInTick = 0;
 
 const toggleAllNotes = () => {
     /** @type {NodeListOf<HTMLInputElement>} */
-    const notes = document.querySelectorAll("input.select_note");
+    const notes = $_("input.select_note");
     const allSelected = Array.from(notes).every((n) => n.checked);
     for (const note of notes) {
         note.checked = allSelected ? false : true;
@@ -619,6 +799,64 @@ const removeCard = async (id) => {
     }
 };
 
+const saveDeck = (/** @type {HTMLButtonElement} */ button) => {
+    const text = button.innerHTML;
+    saveDeckToFile(globalDeck, (update, reset) => {
+        if (reset) button.innerHTML = text;
+        else button.innerHTML = update;
+    });
+};
+
+/**
+ * @template {readonly string[]} Keys
+ * @template {Record<Keys[number], unknown>} Obj
+ * @param {Keys} keys
+ * @param {object} obj
+ * @returns {obj is Obj}
+ */
+const hasAll = (keys, obj) => {
+    return keys.every((key) => key in obj);
+};
+
+/**
+ * @param {unknown} obj
+ */
+const checkDeckTyping = (obj) => {
+    if (typeof obj !== "object") return null;
+    if (Array.isArray(obj)) return null;
+    if (!obj) return null;
+    /** @type {Record<string, FullDeckData>} */
+    const retObj = {};
+    for (const deckName in obj) {
+        const deck = obj[deckName];
+        const keys = /** @type {const} */ ([
+            "id",
+            "name",
+            "label",
+            "cards",
+            "parsers",
+        ]);
+        if (hasAll(keys, deck)) {
+            if (typeof deck.id !== "number") continue;
+            if (typeof deck.label !== "string") continue;
+            if (typeof deck.name !== "string") continue;
+            if (typeof deck.parsers !== "object" && deck.parsers) continue;
+            if (typeof deck.cards !== "object" || !Array.isArray(deck.cards))
+                continue;
+            /** @type {FullDeckData} */
+            const dk = {
+                cards: /** @type {CardData[]} */ (deck.cards),
+                id: deck.id,
+                label: deck.label,
+                name: deck.name,
+                parsers: /** @type {Record<string,string>}*/ (deck.parsers),
+            };
+            retObj[deckName] = dk;
+        }
+    }
+    return retObj;
+};
+
 const DEFAULT_PARSE = `
 const matches = value.matchAll(
     /(?<word>.*?)\\((?<reading>.*?)\\):(?<meaning>.*?)(?:\\n|$)/gim
@@ -686,9 +924,8 @@ const getSavedCodeParsers = () => {
 const parserCodes = { DEFAULT: DEFAULT_PARSE, ...getSavedCodeParsers() };
 
 const parseCards = () => {
-    /** @type {HTMLTextAreaElement | null} */
-    const area = document.querySelector("textarea");
-    if (!area) throw "No textarea";
+    /** @type {HTMLTextAreaElement} */
+    const area = $$("textarea");
     const value = area.value;
     if (!value) return "No value!";
     area.value = "";
@@ -704,61 +941,20 @@ const parseCards = () => {
     }
 };
 
-const saveDeck = () => {
-    saveDeckToFile(globalDeck);
-};
-
-/**
- * @template {readonly string[]} Keys
- * @template {Record<Keys[number], unknown>} Obj
- * @param {Keys} keys
- * @param {object} obj
- * @returns {obj is Obj}
- */
-const hasAll = (keys, obj) => {
-    return keys.every((key) => key in obj);
-};
-
-/**
- * @param {unknown} obj
- */
-const checkDeckTyping = (obj) => {
-    if (typeof obj !== "object") return null;
-    if (Array.isArray(obj)) return null;
-    if (!obj) return null;
-    /** @type {Record<string, FullDeckData>} */
-    const retObj = {};
-    for (const deckName in obj) {
-        const deck = obj[deckName];
-        const keys = /** @type {const} */ ([
-            "id",
-            "name",
-            "label",
-            "cards",
-            "parsers",
-        ]);
-        if (hasAll(keys, deck)) {
-            if (typeof deck.id !== "number") continue;
-            if (typeof deck.label !== "string") continue;
-            if (typeof deck.name !== "string") continue;
-            if (typeof deck.parsers !== "object" && deck.parsers) continue;
-            if (typeof deck.cards !== "object" || !Array.isArray(deck.cards))
-                continue;
-            /** @type {FullDeckData} */
-            const dk = {
-                cards: /** @type {CardData[]} */ (deck.cards),
-                id: deck.id,
-                label: deck.label,
-                name: deck.name,
-                parsers: /** @type {Record<string,string>}*/ (deck.parsers),
-            };
-            retObj[deckName] = dk;
-        }
-    }
-    return retObj;
-};
-
 /** @typedef {{label: string; cards: CardData[]; id: number; name: string; parsers?: Record<string,string> }} FullDeckData */
+
+/**
+ *
+ * @param {FullDeckData} fdd
+ * @returns {Deck}
+ */
+const FullDeckDataToDeck = (fdd) => {
+    const deck = new Deck(fdd.id, fdd.label);
+    for (const card of fdd.cards) {
+        deck.addNote(createCard(card));
+    }
+    return deck;
+};
 
 /**
  * @param {HTMLButtonElement} importBtn
@@ -836,19 +1032,21 @@ const importDecks = async (importBtn) => {
     }
 };
 
-/**
- * @param {HTMLButtonElement} exportBtn
- */
-const exportDeck = async (exportBtn) => {
-    const initState = exportBtn.innerHTML;
+const getAllDeckData = async (
+    /** @type {(update: string)=>void} */ updater,
+    /** @type {(string|number)[]?} */ decks
+) => {
+    updater("Gathering data...");
     try {
-        exportBtn.innerText = "Gathering data...";
         idb.idb.close();
         /** @type {Record<string, FullDeckData>} */
         const allDecksObj = {};
 
         for (const name in deckDatas) {
             const { id, label } = deckDatas[name];
+            if (decks && !decks.includes(id) && !decks.includes(label))
+                continue;
+            updater(`Getting data for ${label}`);
 
             const idb = await createAnIDB(name);
 
@@ -866,7 +1064,23 @@ const exportDeck = async (exportBtn) => {
             };
             idb.idb.close();
         }
-        exportBtn.innerText = "Creating output file...";
+        return allDecksObj;
+    } catch (e) {
+        alert(`Error #exportDeck\n${e.message}`);
+    }
+};
+
+/**
+ * @param {HTMLButtonElement} exportBtn
+ */
+const exportDeckData = async (exportBtn) => {
+    const initState = exportBtn.innerHTML;
+    try {
+        const allDecksObj = await getAllDeckData((update) => {
+            exportBtn.innerHTML = update;
+            console.log(update);
+        });
+        if (!allDecksObj) throw "Could not get the deck data!";
         const file = new Blob([JSON.stringify(allDecksObj, undefined, 4)], {
             type: "application/json",
         });
@@ -889,10 +1103,9 @@ const removeCodeParser = (parser) => {
 
 const editParser = () => {
     /**
-     * @type {HTMLDialogElement | null}
+     * @type {HTMLDialogElement}
      */
-    const dialog = document.querySelector("dialog#parseDialog");
-    if (!dialog) return;
+    const dialog = $$("dialog#parseDialog");
 
     dialog.addEventListener("click", function (event) {
         var rect = dialog.getBoundingClientRect();
@@ -942,15 +1155,14 @@ const editParser = () => {
             editParser();
         };
 
-        /** @type {HTMLButtonElement | null} */
-        const testBtn = dialog.querySelector("#testBtn");
+        /** @type {HTMLButtonElement} */
+        const testBtn = $("testBtn");
 
         if (testBtn) {
             testBtn.onclick = () => {
-                /** @type {HTMLTextAreaElement | null} */
-                const area = dialog.querySelector("#testValue");
-                /** @type {HTMLDivElement | null} */
-                const result = dialog.querySelector("#codeResult");
+                /** @type {HTMLTextAreaElement} */
+                const area = $("testValue");
+                const result = $("codeResult");
 
                 /** @type {HTMLTextAreaElement | null} */
                 const code = dialog.querySelector("#code");
@@ -1009,4 +1221,168 @@ const editParser = () => {
     listDiv.append(addParser);
 
     dialog.showModal();
+};
+
+const mediaManager = new MediaManager();
+
+/**
+ * @param {string} [autoselectname]
+ */
+const openMediaManager = (autoselectname) => {
+    /** @type {HTMLDialogElement} */
+    const mediaDialog = $("mediaManager");
+    makeDialogBackdropExitable(mediaDialog);
+
+    const mediaNames = $("mediaList");
+
+    const dataSheet = $("mediaData");
+
+    const mdata = {
+        /** @type {HTMLInputElement} */ name: $("mediaName"),
+        /** @type {HTMLTextAreaElement} */ description: $("mediaDescription"),
+        /** @type {HTMLSpanElement} */ size: $("mediaSize"),
+        /** @type {HTMLSpanElement} */ type: $("mediaType"),
+        typeVis: $("mediaTypeParent"),
+        info: $("mediaInfo"),
+        loading: $("mediaLoading"),
+        mediaCenter: $("mediaCenter"),
+        /** @type {HTMLInputElement} */ package: $("mediaPackage"),
+        /** @type {HTMLButtonElement} */ save: $("mediaSave"),
+        /** @type {HTMLButtonElement} */ load: $("mediaLoad"),
+        /**@type {HTMLButtonElement} */ remove: $("mediaRemove"),
+    };
+
+    dataSheet.dataset.header = "0";
+    mdata.loading.innerHTML = "No media selected";
+    mdata.mediaCenter.style.visibility = "hidden";
+
+    /** @type {HTMLDivElement | null} */
+    let selectedMedia = null;
+
+    const select = async (
+        /** @type {HTMLDivElement} */ div,
+        /** @type {string} */ name
+    ) => {
+        mdata.loading.style.display = "initial";
+        mdata.loading.innerHTML = "Loading...";
+        mdata.mediaCenter.style.visibility = "hidden";
+        if (selectedMedia) selectedMedia.dataset.selected = "0";
+        selectedMedia = div;
+        selectedMedia.dataset.selected = "1";
+
+        const indbValue = await mediaManager.media(name);
+
+        console.log("Data from db", indbValue);
+
+        mdata.name.value = name;
+        mdata.description.value = indbValue.info.desc ?? "";
+        mdata.size.innerHTML = `${indbValue.info.size}`;
+        mdata.type.innerHTML = indbValue.info.type ?? "";
+        mdata.typeVis.style.display = indbValue.info.type ? "initial" : "none";
+
+        mdata.package.checked = !!indbValue.package;
+
+        const checkIfSaveNeeded = () => {
+            let needSave = false;
+            if (indbValue.name !== mdata.name.value) needSave = true;
+            if (indbValue.info.desc !== mdata.description.value)
+                needSave = true;
+            if (!!indbValue.package !== mdata.package.checked) needSave = true;
+
+            console.log("need save???", needSave);
+
+            if (needSave) {
+                mdata.save.disabled = false;
+            } else {
+                mdata.save.disabled = true;
+            }
+        };
+
+        checkIfSaveNeeded();
+
+        mdata.description.onchange = mdata.description.oninput =
+            checkIfSaveNeeded;
+        mdata.name.onchange = mdata.name.oninput = checkIfSaveNeeded;
+        mdata.package.onchange = checkIfSaveNeeded;
+
+        mdata.remove.onclick = async () => {
+            await mediaManager.removeMedia(name);
+            openMediaManager(undefined);
+        };
+
+        if (indbValue.data === null) {
+            mdata.info.innerHTML = "No media loaded!";
+            mdata.info.style.color = "red";
+            mdata.package.disabled = true;
+            mdata.description.disabled = true;
+        }
+
+        mdata.save.onclick = async () => {
+            if (indbValue.name !== mdata.name.value) {
+                await mediaManager.removeMedia(indbValue.name);
+            }
+            await mediaManager.putMedia({
+                ...indbValue,
+                name: mdata.name.value,
+                info: { ...indbValue.info, desc: mdata.description.value },
+                package: mdata.package.checked,
+            });
+            openMediaManager(mdata.name.value);
+        };
+
+        mdata.load.onclick = () => {
+            const fileSelect = document.createElement("input");
+            fileSelect.type = "file";
+            fileSelect.click();
+            fileSelect.onchange = async () => {
+                if (fileSelect.files?.length === 1) {
+                    const file = fileSelect.files[0];
+                    console.log(file);
+                    const data = await file.arrayBuffer();
+                    console.log(data);
+                    /** @type {MediaData} */
+                    const mData = {
+                        ...indbValue,
+                        data: data,
+                        info: { ...indbValue.info, size: data.byteLength },
+                    };
+                    await mediaManager.putMedia(mData);
+                    openMediaManager(mData.name);
+                }
+            };
+        };
+
+        dataSheet.dataset.header = "1";
+        mdata.mediaCenter.style.visibility = "visible";
+        mdata.loading.style.display = "none";
+    };
+
+    mediaNames.innerHTML = "";
+    for (const mediaName of mediaManager.mediaNames) {
+        const div = document.createElement("div");
+        if (!autoselectname && !selectedMedia) select(div, mediaName);
+        else if (autoselectname === mediaName) select(div, mediaName);
+        div.addEventListener("click", () => {
+            select(div, mediaName);
+        });
+        div.innerHTML = mediaName;
+        mediaNames.append(div);
+    }
+
+    const addMedia = document.createElement("div");
+    addMedia.innerText = "Add";
+    addMedia.id = "addMedia";
+    addMedia.onclick = async () => {
+        const name = `New media (${mediaManager.mediaNames.length + 1})`;
+        await mediaManager.putMedia({
+            name: name,
+            data: null,
+            info: { size: 0 },
+            package: false,
+        });
+        openMediaManager(name);
+    };
+    mediaNames.append(addMedia);
+
+    mediaDialog.showModal();
 };

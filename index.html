@@ -16,6 +16,8 @@
     <!-- jszip for .apkg -->
     <script src="js/jszip.min.js"></script>
 
+    <script src="./mediaIDB.js"></script>
+    <script src="./mediaManager.js"></script>
     <script src="./idb.js"></script>
     <link rel="stylesheet" href="index.css">
 
@@ -68,9 +70,47 @@
                 <button onclick="editParser()">Edit parser code</button>
             </div>
         </div>
+        <dialog id="saveMultiple">
+            <label>File name:<input id="packagename" />.apkg</label>
+            <div>
+                <div id="outList"></div>
+                <div id="moveToInList">=></div>
+                <div id="inList"></div>
+            </div>
+            <button id="exportMultiple">Export</button>
+        </dialog>
+        <dialog id="mediaManager">
+            <div id="mediaList"></div>
+            <div id="mediaData">
+                <div id="mediaLoading">Loading...</div>
+                <div id="mediaCenter">
 
-        <button onclick="saveDeck()">Save deck</button>
-        <button onclick="exportDeck(this)">Export deck</button>
+                    <label>Name: <input id="mediaName" /></label>
+                    <label>Description:
+                        <textarea id="mediaDescription"></textarea>
+                    </label>
+                    <label>
+                        Size: <span id="mediaSize"></span>
+                    </label>
+                    <label style="display:hidden;" id="mediaTypeParent">
+                        Type: <span id="mediaType"></span>
+                    </label>
+                    <div id="mediaInfo">
+                    </div>
+                    <label style="display:hidden;" id="mediaTypeParent">
+                        Package: <input type="checkbox" id="mediaPackage" />
+                    </label>
+                    <button id="mediaLoad">Load media</button>
+                    <button id="mediaSave">Save</button>
+                    <button id="mediaRemove">Remove</button>
+                </div>
+            </div>
+        </dialog>
+
+        <button onclick="openMediaManager()">Manage media</button>
+        <button onclick="saveDeck(this)">Export deck</button>
+        <button onclick="saveMultipleDecks()">Export multiple decks</button>
+        <button onclick="exportDeckData(this)">Export deck data</button>
         <button onclick="importDecks(this)">Import decks</button>
     </div>
 

@@ -6,7 +6,7 @@ table {
 body {
     margin: 0;
     padding: 0;
-max-height: 100vh;
+    max-height: 100vh;
 }
 
 table th,
@@ -30,7 +30,7 @@ button {
 body {
     display: flex;
     min-width: 95vw;
-width: max-content;
+    width: max-content;
     margin: 0;
 }
 
@@ -96,4 +96,96 @@ dialog#parseDialog[open] {
 
 .testfield {
     padding: 2px;
+}
+
+#saveMultiple[open] > div {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: 5fr 1fr 5fr;
+}
+
+#inList,
+#outList {
+    border: 1px solid gray;
+}
+
+#moveToInList {
+    justify-self: center;
+    cursor: pointer;
+    align-self: center;
+}
+
+#inList > div,
+#outList > div {
+    cursor: pointer;
+}
+
+#inList::before {
+    content: "Decks to save";
+}
+
+#inList::before,
+#outList::before {
+    display: block;
+    font-weight: bolder;
+    text-align: center;
+}
+
+#outList::before {
+    content: "All decks";
+}
+
+#inList > [data-selected="1"],
+#outList > [data-selected="1"] {
+    background-color: #ccc;
+}
+
+#exportMultiple {
+    float: right;
+}
+
+#mediaManager[open] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: 1fr 2fr;
+}
+
+#mediaList {
+    border: 1px solid black;
+}
+
+#mediaList div {
+    padding: 1px 5px;
+    cursor: pointer;
+    user-select: none;
+}
+#mediaList div[data-selected="1"] {
+    background-color: #ccc;
+}
+
+#mediaData {
+    border: 1px solid black;
+    display: grid;
+}
+
+#mediaData label {
+    display: flex;
+    justify-self: center;
+    align-items: center;
+}
+
+#mediaData[data-header="1"]::before {
+    content: "Data";
+    display: block;
+    font-weight: bolder;
+    border-bottom: 1px solid black;
+}
+#addMedia {
+    text-align: center;
+}
+#mediaInfo {
+    text-align: center;
+}
+#mediaCenter {
+    padding: 5px;
 }

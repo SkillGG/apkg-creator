@@ -100,6 +100,9 @@ class ClozeModel extends Model {
 }
 
 class Deck {
+    id: number;
+    name: string;
+    desc: string;
     notes: Note[];
     constructor(id: number, name: string, desc = "");
     addNote(note: Note);
@@ -218,7 +221,7 @@ class Package {
     addDeck(deck: Deck): void;
     addMedia(data: any, name: string): void;
     addMediaFile(filename: string, name = null): void;
-    writeToFile(filename: string): void;
+    writeToFile(filename: string): Promise<void>;
     write(db: any): void;
 }
 

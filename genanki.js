@@ -426,38 +426,46 @@ class Package {
     }
 
     writeToFile(filename) {
-        var db = new SQL.Database();
-        db.run(APKG_SCHEMA);
+        return new Promise((res, req) => {
+            var db = new SQL.Database();
+            db.run(APKG_SCHEMA);
 
-        this.write(db);
+            this.write(db);
 
-        var zip = new JSZip();
+            var zip = new JSZip();
 
-        const data = db.export();
-        const buffer = new Uint8Array(data).buffer;
+            const data = db.export();
+            const buffer = new Uint8Array(data).buffer;
 
-        zip.file("collection.anki2", buffer);
+            zip.file("collection.anki2", buffer);
 
-        const media_info = {};
+            const media_info = {};
 
-        this.media.forEach((m, i) => {
-            if (m.filename != null) {
-                zip.file(i.toString(), m.filename);
-            } else {
-                zip.file(i.toString(), m.data);
-            }
+            this.media.forEach((m, i) => {
+                if (m.filename != null) {
+                    zip.file(i.toString(), m.filename);
+                } else {
+                    zip.file(i.toString(), m.data);
+                }
 
-            media_info[i] = m.name;
-        });
+                media_info[i] = m.name;
+            });
 
-        zip.file("media", JSON.stringify(media_info));
+            zip.file("media", JSON.stringify(media_info));
 
-        zip.generateAsync({ type: "blob", mimeType: "application/apkg" }).then(
-            function (content) {
+            zip.generateAsync({
+                type: "blob",
+                mimeType: "application/apkg",
+                compression: "DEFLATE",
+                compressionOptions: {
+                    level: 9,
+                },
+            }).then(function (content) {
                 // see FileSaver.js
                 saveAs(content, filename);
-            }
-        );
+                res();
+            });
+        });
     }
 
     write(db) {
