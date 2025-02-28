@@ -189,3 +189,17 @@ dialog#parseDialog[open] {
 #mediaCenter {
     padding: 5px;
 }
+#btns {
+    display: flex;
+    column-gap: 5px;
+    row-gap: 3px;
+    flex-wrap: wrap;
+    margin-inline: 25px;
+    margin-top: 5px;
+    max-width: 50%;
+    justify-content: center;
+}
+
+#btns > button {
+    display: block;
+}

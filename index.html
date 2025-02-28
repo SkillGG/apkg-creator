@@ -107,11 +107,14 @@
             </div>
         </dialog>
 
-        <button onclick="openMediaManager()">Manage media</button>
-        <button onclick="saveDeck(this)">Export deck</button>
-        <button onclick="saveMultipleDecks()">Export multiple decks</button>
-        <button onclick="exportDeckData(this)">Export deck data</button>
-        <button onclick="importDecks(this)">Import decks</button>
+        <div id="btns">
+
+            <button onclick="saveDeck(this)">Export deck</button>
+            <button onclick="saveMultipleDecks()">Export multiple decks</button>
+            <button onclick="exportDeckData(this)">Export deck data</button>
+            <button onclick="importDecks(this)">Import decks</button>
+            <button onclick="openMediaManager()">Manage media</button>
+        </div>
     </div>
 
     <script defer src="index.js?"></script>
