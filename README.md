@@ -19,5 +19,5 @@ TODO:
 -   Remove deck
 -   Edit note button
 -   Model editing
--   Deck editing (probably impossible)
+-   Import from .apkg
 -   Remove default deck
