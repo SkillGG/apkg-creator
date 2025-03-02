@@ -5,7 +5,7 @@ table {
 
 body {
     margin: 0;
-    padding: 0;
+    padding: 5px 0;
     max-height: 100vh;
 }
 
@@ -90,12 +90,21 @@ dialog#parseDialog[open] {
 }
 
 .testnote {
-    border: 1px solid black;
     display: flex;
+}
+
+.testnote:first-child {
+    padding-top: 3px;
 }
 
 .testfield {
     padding: 2px;
+    flex-grow: 1;
+    text-align: center;
+}
+
+.testfield:not(:last-child) {
+    border-right: 1px solid black;
 }
 
 #saveMultiple[open] > div {
@@ -242,4 +251,18 @@ table.firstrun {
     content: attr(data-header);
     grid-row: 1 / span 1;
     grid-column: 1 / span var(--cols);
+}
+#saveParserCode {
+    margin-top: 2px;
+}
+.testCode {
+    display: grid;
+    grid-auto-flow: column;
+    height: fit-content;
+    align-items: center;
+}
+
+#codeResult {
+    grid-row: 2 / span 1;
+    grid-column: 1 / span 3;
 }

@@ -42,13 +42,13 @@ class MediaManager {
      */
     async putMedia(media) {
         const idb = await createMediaIDB("media");
-        console.log("Putting data", media);
+        // console.log("Putting data", media);
         await idb.putData("media", [media]);
         /** @type {string[]} */
         const newMediaNames = await idb.getData("media", (getter) => {
             return getter.getAllKeys();
         });
-        console.log("new names", newMediaNames);
+        // console.log("new names", newMediaNames);
         this.mediaNames = newMediaNames;
         localStorage.setItem("media", JSON.stringify(newMediaNames));
         idb.idb.close();
@@ -71,7 +71,7 @@ class MediaManager {
         const newMediaNames = await idb.getData("media", (getter) => {
             return getter.getAllKeys();
         });
-        console.log("new names", newMediaNames);
+        // console.log("new names", newMediaNames);
         this.mediaNames = newMediaNames;
         localStorage.setItem("media", JSON.stringify(newMediaNames));
         idb.idb.close();

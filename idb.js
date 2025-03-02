@@ -3,6 +3,12 @@ class IDB {
         if (!this.idb) throw "No IDB Opened!";
         return this.idb;
     }
+    close() {
+        return new Promise((res, rej) => {
+            this.idb.close();
+            res();
+        });
+    }
     /**
      * @param {string} store
      * @param {number} id
@@ -35,9 +41,8 @@ class IDB {
                 return;
             }
             const transaction = db.transaction(storeName, "readonly");
-            console.log("got transaction");
             const objStore = transaction.objectStore(storeName);
-            console.log("got object store");
+            // console.log("got object store");
             const request = dataGetter(objStore);
             request.onsuccess = () => {
                 res(request.result);
@@ -59,9 +64,8 @@ class IDB {
                 return;
             }
             const transaction = db.transaction(storeName, "readwrite");
-            console.log("got transaction");
             const objStore = transaction.objectStore(storeName);
-            console.log("got object store");
+            // console.log("got object store");
             /** @type {{done:boolean}[]} */
             const done = [];
             /**
@@ -90,6 +94,12 @@ class IDB {
      */
     constructor(name) {
         const idb = window.indexedDB.open(name, 5);
+        idb.onblocked = () => {
+            // console.log("blocked");
+        };
+        idb.onerror = (err) => {
+            console.error("IDB Opening error", err);
+        };
         idb.onupgradeneeded = (event) => {
             /** @type {IDBDatabase} */
             const db = event.target.result;
@@ -97,7 +107,7 @@ class IDB {
                 if (db.objectStoreNames.contains("cards"))
                     db.deleteObjectStore("cards");
             }
-            console.log("creating an object store");
+            // console.log("creating an object store");
             const cards = db.createObjectStore("cards", {
                 keyPath: "id",
             });
@@ -125,3 +135,13 @@ const createAnIDB = (name) =>
             }
         }, 10);
     });
+
+/**
+ * @param {string} name
+ */
+IDB.delete = (name) => {
+    return new Promise((res) => {
+        const conn = indexedDB.deleteDatabase(name);
+        conn.onsuccess = res;
+    });
+};

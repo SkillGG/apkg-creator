@@ -131,10 +131,8 @@ const copyToDeck = async (deck, notes) => {
             data.id = new Date().getTime();
         }
         usedIDs.push(data.id);
-        const query = db
-            .transaction("cards", "readwrite")
-            .objectStore("cards")
-            .put(data);
+        const queryTx = db.transaction("cards", "readwrite");
+        const query = queryTx.objectStore("cards").put(data);
         query.onsuccess = () => {
             status.status = true;
             checkDone(() => {
@@ -228,27 +226,44 @@ const applyNewDeckName = () => {
     }
 };
 
-const removeDeck = (name) => {
+/**
+ *
+ * @param {string} name
+ * @param {(update:string)=>void} [updater]
+ */
+const removeDeck = async (name, updater = undefined) => {
+    updater?.(`removing db named: ${name}`);
     if (IDBname === name) {
-        console.log("removing db named ", name);
-        idb.idb.close();
+        updater?.(`Closing db connection`);
+        await idb.close();
     }
-    indexedDB.deleteDatabase(name);
+    updater?.(`Deleting the IDB`);
+    await IDB.delete(name);
+
+    updater?.(`Deleting deck data`);
     const newDBS = dbs.filter((f) => f !== name);
     localStorage.setItem("dbs", JSON.stringify(newDBS));
     if (newDBS.length > 0) localStorage.setItem("dbname", newDBS[0]);
     else localStorage.removeItem("dbname");
+    const newDeckDatas = { ...deckDatas };
+    delete newDeckDatas[name];
+
+    localStorage.setItem("deckdatas", JSON.stringify(newDeckDatas));
+
     location.reload();
 };
 
-const removeDeckDialog = () => {
+const removeDeckDialog = (btn) => {
     deckSelectDialog(
         (db) => {
             const affirmation = prompt(
                 `Are you sure you want to delete this deck? Write "${db}" to remove it!`
             );
             if (affirmation === db) {
-                removeDeck(db);
+                removeDeck(db, (update) => {
+                    // console.log(update);
+                    btn.innerText = update;
+                });
             }
         },
         "Remove deck",
@@ -417,7 +432,7 @@ const saveMultipleDecks = () => {
 
         if (!datas) return;
 
-        console.log(datas);
+        // console.log(datas);
 
         /** @type {Deck[]} */
         const fullDecks = [];
@@ -425,7 +440,7 @@ const saveMultipleDecks = () => {
         exportBtn.innerHTML = "Converting to apkg...";
 
         for (const data in datas) {
-            console.log("Deck name", data);
+            // console.log("Deck name", data);
             const fdd = datas[data];
             const deck = FullDeckDataToDeck(fdd);
             fullDecks.push(deck);
@@ -631,10 +646,12 @@ const loadCardsFromDB = () => {
     return /** @type {Promise<CardData[]>} */ (
         new Promise((res, rej) => {
             const db = idb.getDB();
-            const cards = db.transaction("cards").objectStore("cards").getAll();
+            let tx = db.transaction("cards");
+            const cards = tx.objectStore("cards").getAll();
             cards.onsuccess = () => {
                 res(cards.result);
             };
+            tx.commit();
         })
     );
 };
@@ -763,11 +780,8 @@ const addCardToDeck = (note, id = 0) => {
         }
         takenIds.push(data.id);
         note._guid = `${data.id}`;
-        const putAction = idb
-            .getDB()
-            .transaction("cards", "readwrite")
-            .objectStore("cards")
-            .put(data);
+        const putTx = idb.getDB().transaction("cards", "readwrite");
+        const putAction = putTx.objectStore("cards").put(data);
         putAction.onsuccess = () => {
             globalDeck.addNote(note);
             setTimeout(showNoteList, 10);
@@ -896,17 +910,17 @@ const importDecks = async (importBtn) => {
                 const file = fileAsker.files?.[0];
                 if (file) {
                     const text = await file.text();
-                    console.log("Got file", file);
+                    // console.log("Got file", file);
                     const json = JSON.parse(text);
 
-                    console.log("Parsed successfully");
+                    // console.log("Parsed successfully");
 
                     const decks = checkDeckTyping(json);
 
-                    console.log(decks);
+                    // console.log(decks);
 
                     for (const deckName in decks) {
-                        console.log("Importing deck", deckName);
+                        // console.log("Importing deck", deckName);
                         try {
                             const deck = decks[deckName];
 
@@ -915,7 +929,7 @@ const importDecks = async (importBtn) => {
                             await idb.putData("cards", deck.cards);
 
                             if (deck.parsers) {
-                                console.log("Got parsers, ", deck.parsers);
+                                // console.log("Got parsers, ", deck.parsers);
                                 for (const parser in deck.parsers) {
                                     updateParser(parser, deck.parsers[parser]);
                                 }
@@ -998,7 +1012,7 @@ const exportDeckData = async (exportBtn) => {
     try {
         const allDecksObj = await getAllDeckData((update) => {
             exportBtn.innerHTML = update;
-            console.log(update);
+            // console.log(update);
         });
         if (!allDecksObj) throw "Could not get the deck data!";
         const file = new Blob([JSON.stringify(allDecksObj, undefined, 4)], {
@@ -1112,7 +1126,7 @@ const editParser = () => {
         }
     };
 
-    console.log("Cur parser: ", getCurParserName());
+    // console.log("Cur parser: ", getCurParserName());
 
     for (const parserID in parserCodes) {
         const div = document.createElement("div");
@@ -1193,7 +1207,7 @@ const openMediaManager = (autoselectname) => {
 
         const indbValue = await mediaManager.media(name);
 
-        console.log("Data from db", indbValue.data);
+        // console.log("Data from db", indbValue.data);
 
         mdata.name.value = name;
         mdata.description.value = indbValue.info.desc ?? "";
@@ -1216,7 +1230,7 @@ const openMediaManager = (autoselectname) => {
                 needSave = true;
             }
 
-            console.log("need save???", needSave);
+            // console.log("need save???", needSave);
 
             if (needSave) {
                 mdata.save.disabled = false;
@@ -1269,9 +1283,9 @@ const openMediaManager = (autoselectname) => {
             fileSelect.onchange = async () => {
                 if (fileSelect.files?.length === 1) {
                     const file = fileSelect.files[0];
-                    console.log("File:", file);
+                    // console.log("File:", file);
                     const data = await file.arrayBuffer();
-                    console.log(data);
+                    // console.log(data);
                     /** @type {MediaData} */
                     const mData = {
                         ...indbValue,

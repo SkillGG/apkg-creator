@@ -42,7 +42,7 @@
     <br />
     <div id="creator">
         <button id="changeDeck" class="hiddenOnFirstRun" onclick="swapDeckDialog()">Change deck</button>
-        <button id="removeDeck" class="hiddenOnFirstRun" onclick="removeDeckDialog()">Remove deck</button>
+        <button id="removeDeck" class="hiddenOnFirstRun" onclick="removeDeckDialog(this)">Remove deck</button>
         <button id="addDeck" class="hiddenOnFirstRun" onclick="addDeckDialog()">Add deck</button>
         <br class="hiddenOnFirstRun" />
         <label id="deckLabel" class="hiddenOnFirstRun">Deck label:<input id="deckLabelInput" /></label><button
@@ -58,14 +58,14 @@
             <div>
                 <textarea id="parseData"></textarea>
                 <button id="parseCards" onclick="parseCards()">Parse</button>
-                <dialog id="parseDialog">
+                <dialog id="parseDialog" style="font-family: monospace;">
                     <div class="parserList"></div>
                     <div class="parserCode">
                         <span>(value) =>{<button style="display: inline; float:right;"
                                 id="removeCodeParser">REMOVE</button></span><br />
-                        &emsp;const noteValues: string[][] = [];
+                        &emsp;&emsp;const noteValues = /** @type {string[][]} */ ([]);
                         <textarea id="code" style="margin-left: 1em;"></textarea>
-                        &emsp;createNotesFrom(noteValues);<br />
+                        &emsp;&emsp;createNotesFrom(noteValues);<br />
                         }
                         <button id="saveParserCode">Save</button>
                     </div>

@@ -37,9 +37,7 @@ class MediaIDB {
                 return;
             }
             const transaction = db.transaction(storeName, "readonly");
-            console.log("got transaction");
             const objStore = transaction.objectStore(storeName);
-            console.log("got object store");
             const request = dataGetter(objStore);
             request.onsuccess = () => {
                 res(request.result);
@@ -61,9 +59,7 @@ class MediaIDB {
                 return;
             }
             const transaction = db.transaction(storeName, "readwrite");
-            console.log("got transaction");
             const objStore = transaction.objectStore(storeName);
-            console.log("got object store");
             /** @type {{done:boolean}[]} */
             const done = [];
             /**
@@ -95,7 +91,6 @@ class MediaIDB {
         idb.onupgradeneeded = (event) => {
             /** @type {IDBDatabase} */
             const db = event.target.result;
-            console.log("creating a media object store");
             const media = db.createObjectStore("media", {
                 keyPath: "name",
             });
