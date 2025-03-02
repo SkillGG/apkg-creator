@@ -1,6 +1,6 @@
 ## An website app for quick creating anki decks
 
-You can launch it online by going [here](https://skillgg.github.io/js-ankigen-web/) or you can run it locally:
+You can launch it online by going [here](https://skillgg.github.io/apkg-creator/) or you can run it locally:
 
 1. Download the entire source code of this project into a single folder.
 2. Open file index.html
