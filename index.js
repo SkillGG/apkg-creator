@@ -2,56 +2,15 @@
 /// <reference path="./genanki.d.ts" />
 /// <reference path="./idb.js" />
 /// <reference path="./mediaManager.js" />
+/// <reference path="./utils.js" />
+/// <reference path="./parsers.js" />
 
-/**
- * @template {HTMLElement} [Q = HTMLDivElement]
- * @param {string} q
- * @returns {Q}
- */
-const $ = (q) => $$(`#${q}`);
-
-/**
- * @template {HTMLElement} [Q = HTMLDivElement]
- * @param {string} query
- * @returns {Q}
- */
-const $$ = (query) => {
-    /** @type {Q | null} */
-    const el = document.querySelector(query);
-    if (el) return el;
-    throw `Could not find element with query '${query}'`;
-};
-
-/**
- * @template {HTMLElement} [Q = HTMLDivElement]
- * @param {string} query
- * @returns {NodeListOf<Q>}
- */
-const $_ = (query) => {
-    /** @type {NodeListOf<Q>} */
-    const els = document.querySelectorAll(query);
-    return els;
-};
-
-/**
- *
- * @param {HTMLDialogElement} dialog
- * @param {()=>void} [closeCallback]
- */
-const makeDialogBackdropExitable = (dialog, closeCallback) => {
-    dialog.addEventListener("click", function (event) {
-        var rect = dialog.getBoundingClientRect();
-        var isInDialog =
-            rect.top <= event.clientY &&
-            event.clientY <= rect.top + rect.height &&
-            rect.left <= event.clientX &&
-            event.clientX <= rect.left + rect.width;
-        if (!isInDialog) {
-            dialog.close();
-            closeCallback?.();
-        }
-    });
-};
+/** @type {HTMLInputElement} */
+const deckLabelInput = $("deckLabelInput");
+/** @type {HTMLInputElement} */
+const deckLabel = $$("#deckLabel");
+const notecreator = $("notecreator");
+const fieldlist = $("fieldlist");
 
 const ELLIPSIS_THRESHOLD = 50;
 
@@ -63,8 +22,6 @@ const dbString = localStorage.getItem("dbs") ?? "[]";
 /** @type {string[]} */
 let dbs = JSON.parse(dbString);
 
-console.log("dbs", dbs);
-
 /** @type {Record<string, DeckData>} */
 const deckDatasJSON = JSON.parse(localStorage.getItem("deckdatas") ?? "null");
 /** @type {Record<string, DeckData>} */
@@ -72,16 +29,10 @@ const deckDatas = {
     ...deckDatasJSON,
 };
 
-/** @type {HTMLInputElement} */
-const deckLabelInput = $("deckLabelInput");
 if (deckLabelInput) {
     if (!firstRun) deckLabelInput.value = deckDatas[IDBname].label ?? IDBname;
 }
-/** @type {HTMLInputElement} */
-const deckLabel = $$("#deckLabel");
-if (deckLabel) {
-    if (!firstRun) deckLabel.title = IDBname;
-}
+if (!firstRun) deckLabel.title = IDBname;
 
 try {
     const nameLabel = $("dbname");
@@ -398,6 +349,7 @@ window.onkeydown = (e) => {
         modelSelect.dispatchEvent(new Event("change"));
     }
 };
+
 const getModel = () => {
     return models[parseInt(modelSelect.value)] ?? models[0];
 };
@@ -586,7 +538,6 @@ const toggleAllNotes = () => {
     }
 };
 
-const fieldlist = $("fieldlist");
 const showNoteList = () => {
     try {
         if (firstRun || !globalDeck) {
@@ -689,9 +640,7 @@ const loadCardsFromDB = () => {
 };
 
 const loaded = () => {
-    console.log("loaded");
     if (firstRun) {
-        console.log("First run!");
         showNoteList();
         return;
     }
@@ -705,8 +654,6 @@ const loaded = () => {
     });
 };
 
-const notecreator = $("notecreator");
-if (!notecreator) throw "No notecreator";
 const refreshNoteCreator = () => {
     notecreator.innerHTML = "";
     notecreator.append(
@@ -915,90 +862,6 @@ const checkDeckTyping = (obj) => {
         }
     }
     return retObj;
-};
-
-const DEFAULT_PARSE = `
-const matches = value.matchAll(
-    /(?<word>.*?)\\((?<reading>.*?)\\):(?<meaning>.*?)(?:\\n|$)/gim
-);
-
-for (const match of matches) {
-    const groups = match.groups;
-    if (groups) {
-        cardsInTick = match.length;
-        const { word, reading, meaning } = groups;
-        if (!word.trim() || !reading.trim() || !meaning.trim()) continue;
-        noteValues.push([
-            \`\${reading.trim()} - \${meaning.trim()}\`,
-            \`\${word.trim()}\`,
-        ]);
-    }
-}
-`.trim();
-
-const getCurParserName = () => {
-    const local = localStorage.getItem("curparser");
-    if (!local) {
-        localStorage.setItem("curparser", "DEFAULT");
-        return "DEFAULT";
-    } else {
-        if (local in getSavedCodeParsers()) {
-            return local;
-        }
-        return "DEFAULT";
-    }
-};
-
-/**
- * @param {string} parser
- * @param {string | null} newCode
- */
-const updateParser = (parser, newCode) => {
-    if (newCode) parserCodes[parser] = newCode;
-    else delete parserCodes[parser];
-    localStorage.setItem("parsers", JSON.stringify(parserCodes));
-};
-
-const getSavedCodeParsers = () => {
-    /** @type {Record<string, string>} */
-    const parsers = {};
-
-    try {
-        const str = localStorage.getItem("parsers");
-        const json = JSON.parse(str ?? "{}");
-
-        if (typeof json !== "object" || !json || Array.isArray(json)) throw "";
-
-        for (const key in json) {
-            const _code = json[key];
-            if (typeof _code !== "string") continue;
-            parsers[key] = _code;
-        }
-    } catch (err) {
-        return parsers;
-    }
-
-    return parsers;
-};
-
-const parserCodes = { DEFAULT: DEFAULT_PARSE, ...getSavedCodeParsers() };
-
-const parseCards = () => {
-    /** @type {HTMLTextAreaElement} */
-    const area = $$("textarea");
-    const value = area.value;
-    if (!value) return "No value!";
-    area.value = "";
-    /**
-     * @type {string[][]}
-     */
-    const noteValues = [];
-
-    eval(parserCodes[getCurParserName()]);
-
-    for (const note of noteValues) {
-        addCardToDeck(getModel().note(note, []));
-    }
 };
 
 /** @typedef {{label: string; cards: CardData[]; id: number; name: string; parsers?: Record<string,string> }} FullDeckData */
