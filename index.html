@@ -26,11 +26,12 @@
 <body>
     <div id="list">
         <div style="width: max-content; min-width: max-content;">
-            <button onclick="showCopyToDeck()">Copy selected to deck</button>
-            <button onclick="removeSelected()">Remove selected to deck</button>
+            <button id="copySelected" class="hiddenOnFirstRun" onclick="showCopyToDeck()">Copy selected to deck</button>
+            <button id="removeSelected" class="hiddenOnFirstRun" onclick="removeSelected()">Remove selected to
+                deck</button>
         </div>
         <div>
-            <table>
+            <table id="noteTable">
                 <thead id="fieldlist"></thead>
                 <tbody id="notes"></tbody>
             </table>
@@ -38,17 +39,23 @@
     </div>
     <br />
     <div id="creator">
-        <button onclick="openDialog()">Change deck</button><br />
-        <label id="decklabel">Deck label:<input id="decklabel_input" /></label><button
-            onclick="applyNewDeckName()">Save</button>
+        <button id="changeDeck" class="hiddenOnFirstRun" onclick="swapDeckDialog()">Change deck</button>
+        <button id="removeDeck" class="hiddenOnFirstRun" onclick="removeDeckDialog()">Remove deck</button>
+        <button id="addDeck" class="hiddenOnFirstRun" onclick="addDeckDialog()">Add deck</button>
+        <br class="hiddenOnFirstRun" />
+        <label id="deckLabel" class="hiddenOnFirstRun">Deck label:<input id="deckLabelInput" /></label><button
+            id="saveDeckLabel" onclick="applyNewDeckName()" class="hiddenOnFirstRun">Save</button>
         <dialog id="deckDialog"></dialog>
-        <br />Card type:<select id="modelselect"></select>
-        <div id="notecreator">
+        <br class="hiddenOnFirstRun" /><span id="cardType" class="hiddenOnFirstRun">
+            Card type:<select id="modelSelect"></select>
+
+        </span>
+        <div id="notecreator" class="hiddenOnFirstRun">
         </div>
-        <div>
+        <div class="hiddenOnFirstRun">
             <div>
-                <textarea></textarea>
-                <button onclick="parseCards()">Parse</button>
+                <textarea id="parseData"></textarea>
+                <button id="parseCards" onclick="parseCards()">Parse</button>
                 <dialog id="parseDialog">
                     <div class="parserList"></div>
                     <div class="parserCode">
@@ -67,7 +74,7 @@
                         <div id="codeResult"></div>
                     </div>
                 </dialog>
-                <button onclick="editParser()">Edit parser code</button>
+                <button id="editParsers" onclick="editParser()">Edit parser code</button>
             </div>
         </div>
         <dialog id="saveMultiple">
@@ -108,10 +115,9 @@
         </dialog>
 
         <div id="btns">
-
-            <button onclick="saveDeck(this)">Export deck</button>
-            <button onclick="saveMultipleDecks()">Export multiple decks</button>
-            <button onclick="exportDeckData(this)">Export deck data</button>
+            <button onclick="saveDeck(this)" class="hiddenOnFirstRun">Export deck</button>
+            <button onclick="saveMultipleDecks()" class="hiddenOnFirstRun">Export multiple decks</button>
+            <button onclick="exportDeckData(this)" class="hiddenOnFirstRun">Export deck data</button>
             <button onclick="importDecks(this)">Import decks</button>
             <button onclick="openMediaManager()">Manage media</button>
         </div>

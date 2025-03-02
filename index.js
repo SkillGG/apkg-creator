@@ -54,74 +54,73 @@ const makeDialogBackdropExitable = (dialog, closeCallback) => {
 };
 
 const ELLIPSIS_THRESHOLD = 50;
-const DEFAULT_DB = "kanjiguess";
 
-const IDBname = localStorage.getItem("dbname") ?? DEFAULT_DB;
+const IDBname = localStorage.getItem("dbname");
+
+const firstRun = !IDBname;
+
 const dbString = localStorage.getItem("dbs") ?? "[]";
 /** @type {string[]} */
 let dbs = JSON.parse(dbString);
 
-/** @type {Record<string, DeckData>} */
-const DEFAULT_DECK_DATA = {
-    kanjiguess: { id: 1736639633110, label: "文部科学省試験デッキ" },
-};
+console.log("dbs", dbs);
 
 /** @type {Record<string, DeckData>} */
 const deckDatasJSON = JSON.parse(localStorage.getItem("deckdatas") ?? "null");
 /** @type {Record<string, DeckData>} */
 const deckDatas = {
-    ...DEFAULT_DECK_DATA,
     ...deckDatasJSON,
 };
 
 /** @type {HTMLInputElement} */
-const deckLabelInput = $$("#decklabel_input");
+const deckLabelInput = $("deckLabelInput");
 if (deckLabelInput) {
-    deckLabelInput.value = deckDatas[IDBname].label ?? IDBname;
+    if (!firstRun) deckLabelInput.value = deckDatas[IDBname].label ?? IDBname;
 }
 /** @type {HTMLInputElement} */
-const deckLabel = $$("#decklabel");
+const deckLabel = $$("#deckLabel");
 if (deckLabel) {
-    deckLabel.title = IDBname;
+    if (!firstRun) deckLabel.title = IDBname;
 }
 
 try {
     const nameLabel = $("dbname");
-    nameLabel.innerHTML = IDBname === DEFAULT_DB ? "(default)" : IDBname;
+    if (!firstRun) nameLabel.innerHTML = IDBname;
 } catch (e) {}
 
 /** @type {HTMLDialogElement} */
-const deckDialog = $$("dialog#deckDialog");
+const deckDialog = $("deckDialog");
 /**
  * @param {(db:string)=>void} click
- * @param {boolean=} canAdd
- * @param {()=>void} close
+ * @param {string} header
+ * @param {()=>void} [close]
+ * @param {boolean} [hideCurrent]
+ * @param {{label: string, action: ()=>void, id?:string, className?: string}[]} [extraButtons]
  */
-const populateDialog = (click, canAdd = true, close = () => {}) => {
+const deckSelectDialog = (
+    click,
+    header,
+    extraButtons = [],
+    close = () => {},
+    hideCurrent = true
+) => {
     if (deckDialog) {
         deckDialog.innerHTML = "";
         // close on backdrop click
         makeDialogBackdropExitable(deckDialog);
-        // default db button
-        const defaultBtn = document.createElement("button");
-        defaultBtn.innerText = deckDatas[DEFAULT_DB].label ?? "(default)";
-        defaultBtn.onclick = () => {
-            click(DEFAULT_DB);
-        };
-        defaultBtn.classList.add("dbbtn");
-        defaultBtn.style.display = IDBname === DEFAULT_DB ? "none" : "";
+
+        deckDialog.dataset.header = header;
 
         // add DB button
         const addBtn = document.createElement("button");
         addBtn.innerText = "Add";
         addBtn.classList.add("addbtn");
         addBtn.onclick = () => {
-            const name = prompt("New DB name:");
+            const name = prompt("New deck name:");
             addDeck(name);
         };
 
         const options = [
-            defaultBtn,
             ...dbs.map((db) => {
                 // user-defined db buttons
                 const button = document.createElement("button");
@@ -130,13 +129,23 @@ const populateDialog = (click, canAdd = true, close = () => {}) => {
                 button.onclick = () => {
                     click(db);
                 };
-                button.style.display = IDBname === db ? "none" : "";
+                if (hideCurrent)
+                    button.style.display = IDBname === db ? "none" : "";
 
                 return button;
             }),
         ];
-        deckDialog.append(...options);
-        if (canAdd) deckDialog.append(addBtn);
+        deckDialog.append(
+            ...options,
+            ...extraButtons.map((btnData) => {
+                const btn = document.createElement("button");
+                btn.innerHTML = btnData.label;
+                btn.onclick = btnData.action;
+                btn.id = btnData.id ?? "";
+                btn.classList.add(...(btnData.className?.split(" ") ?? []));
+                return btn;
+            })
+        );
     }
 };
 
@@ -185,6 +194,8 @@ const copyToDeck = async (deck, notes) => {
 };
 
 const getSelectedNotes = () => {
+    if (!globalDeck) throw "No deck selected!";
+
     /** @type {NodeListOf<HTMLInputElement>} */
     const selectedNotes = $_("input[type='checkbox'].select_note");
     /** @type {Note[]} */
@@ -213,9 +224,9 @@ const removeSelected = async () => {
 const showCopyToDeck = () => {
     const notes = getSelectedNotes();
     if (notes.length <= 0) return;
-    populateDialog((deck) => {
+    deckSelectDialog((deck) => {
         copyToDeck(deck, notes);
-    }, false);
+    }, "Copy to deck");
     deckDialog?.showModal();
 };
 
@@ -229,7 +240,7 @@ const swapDeck = (name) => {
 
 const addDeck = (name) => {
     if (!name?.trim()) return;
-    if (name === "kanjiguess") throw "Cannot create a duplicate default db!";
+    if (name === "media") throw 'Cannot create a deck with name "media"!';
     if (dbs.includes(name)) throw "This name already exists!";
     const safeName = name.replaceAll(" ", "_");
     localStorage.setItem("dbname", safeName);
@@ -245,6 +256,7 @@ const addDeck = (name) => {
 };
 
 const applyNewDeckName = () => {
+    if (firstRun) throw "No deck selected!";
     if (deckLabelInput) {
         const newDeckName = deckLabelInput.value;
         if (newDeckName) {
@@ -265,11 +277,47 @@ const applyNewDeckName = () => {
     }
 };
 
-const openDialog = () => {
-    populateDialog((db) => swapDeck(db));
-    if (deckDialog) {
-        deckDialog.showModal();
+const removeDeck = (name) => {
+    if (IDBname === name) {
+        console.log("removing db named ", name);
+        idb.idb.close();
     }
+    indexedDB.deleteDatabase(name);
+    const newDBS = dbs.filter((f) => f !== name);
+    localStorage.setItem("dbs", JSON.stringify(newDBS));
+    if (newDBS.length > 0) localStorage.setItem("dbname", newDBS[0]);
+    else localStorage.removeItem("dbname");
+    location.reload();
+};
+
+const removeDeckDialog = () => {
+    deckSelectDialog(
+        (db) => {
+            const affirmation = prompt(
+                `Are you sure you want to delete this deck? Write "${db}" to remove it!`
+            );
+            if (affirmation === db) {
+                removeDeck(db);
+            }
+        },
+        "Remove deck",
+        [],
+        undefined,
+        false
+    );
+    deckDialog.showModal();
+};
+
+const swapDeckDialog = () => {
+    deckSelectDialog((db) => {
+        swapDeck(db);
+    }, "Change deck");
+    deckDialog.showModal();
+};
+
+const addDeckDialog = () => {
+    const name = prompt("Deck name:");
+    addDeck(name);
 };
 
 console.log("using db", IDBname);
@@ -287,7 +335,7 @@ Promise.all([
         // @ts-ignore
         window.SQL = sql;
     }),
-    createAnIDB(IDBname),
+    firstRun ? null : createAnIDB(IDBname),
 ]).then((results) => {
     idb = results[1];
     loaded();
@@ -341,7 +389,7 @@ const kanjiGuessModel = new Model({
 const models = { 0: kanjiGuessModel, 1: basicModel };
 
 /** @type {HTMLSelectElement} */
-const modelSelect = $$("select");
+const modelSelect = $("modelSelect");
 window.onkeydown = (e) => {
     if (e.code === "KeyR" && e.altKey) {
         modelSelect.value = `${
@@ -382,10 +430,9 @@ for (const key in models) {
     };
 }
 
-const globalDeck = new Deck(
-    deckDatas[IDBname]?.id ?? DEFAULT_DECK_DATA[DEFAULT_DB].id,
-    deckDatas[IDBname]?.label ?? DEFAULT_DECK_DATA[DEFAULT_DB].label
-);
+const globalDeck = firstRun
+    ? null
+    : new Deck(deckDatas[IDBname].id, deckDatas[IDBname].label);
 
 const saveMultipleDecks = () => {
     /** @type {HTMLDialogElement} */
@@ -539,9 +586,12 @@ const toggleAllNotes = () => {
     }
 };
 
+const fieldlist = $("fieldlist");
 const showNoteList = () => {
     try {
-        const fieldlist = $("fieldlist");
+        if (firstRun || !globalDeck) {
+            return;
+        }
 
         const notesTable = $("notes");
 
@@ -639,6 +689,13 @@ const loadCardsFromDB = () => {
 };
 
 const loaded = () => {
+    console.log("loaded");
+    if (firstRun) {
+        console.log("First run!");
+        showNoteList();
+        return;
+    }
+    refreshNoteCreator();
     loadCardsFromDB().then((cards) => {
         for (const card of cards) {
             const model = models[card.type] ?? kanjiGuessModel;
@@ -737,7 +794,6 @@ const refreshNoteCreator = () => {
 
     notecreator.append(addCard);
 };
-refreshNoteCreator();
 
 const takenIds = [];
 
@@ -747,6 +803,7 @@ const takenIds = [];
  * @param {number} id
  */
 const addCardToDeck = (note, id = 0) => {
+    if (!globalDeck) throw "No deck selected!";
     if (id === 0) {
         /** @type {CardData} */
         const data = {
@@ -770,7 +827,7 @@ const addCardToDeck = (note, id = 0) => {
         };
     } else {
         note._guid = `${id}`;
-        globalDeck.addNote(note);
+        globalDeck?.addNote(note);
         setTimeout(showNoteList, 10);
     }
     if (notecreator) {
@@ -787,6 +844,7 @@ const addCardToDeck = (note, id = 0) => {
  */
 const removeCard = async (id) => {
     try {
+        if (!globalDeck) throw "No deck selected!";
         const card = globalDeck.notes.findIndex(
             (note) => note.guid === `${id}`
         );
@@ -801,6 +859,7 @@ const removeCard = async (id) => {
 };
 
 const saveDeck = (/** @type {HTMLButtonElement} */ button) => {
+    if (!globalDeck) throw "No deck selected!";
     const text = button.innerHTML;
     saveDeckToFile(globalDeck, (update, reset) => {
         if (reset) button.innerHTML = text;
@@ -998,9 +1057,6 @@ const importDecks = async (importBtn) => {
                                     updateParser(parser, deck.parsers[parser]);
                                 }
                             }
-
-                            if (deckName !== DEFAULT_DB)
-                                dbs = [...new Set([...dbs, deckName])];
 
                             deckDatas[deckName] = {
                                 id: deck.id,
@@ -1255,6 +1311,7 @@ const openMediaManager = (autoselectname) => {
 
     dataSheet.dataset.header = "0";
     mdata.loading.innerHTML = "No media selected";
+    mdata.loading.style.textAlign = "center";
     mdata.mediaCenter.style.visibility = "hidden";
 
     /** @type {HTMLDivElement | null} */
@@ -1402,3 +1459,31 @@ const openMediaManager = (autoselectname) => {
 
     mediaDialog.showModal();
 };
+
+if (dbs.length === 1) {
+    $("changeDeck").style.display = "none";
+}
+
+if (firstRun) {
+    /** @type {HTMLTableElement} */
+    const noteTable = $("noteTable");
+
+    noteTable.classList.add("firstrun");
+
+    const firstRunBtn = document.createElement("button");
+    firstRunBtn.id = "firstRunBtn";
+    fieldlist.append(firstRunBtn);
+    firstRunBtn.innerHTML = "Create a deck first!";
+    fieldlist.classList.add("firstrun");
+
+    $("list table").classList.add("firstrun");
+
+    firstRunBtn.onclick = addDeckDialog;
+
+    /** @type {NodeListOf<HTMLElement>} */
+    const disableOnFirstRun = $_(".hiddenOnFirstRun");
+
+    for (const button of disableOnFirstRun) {
+        button.style.display = "none";
+    }
+}

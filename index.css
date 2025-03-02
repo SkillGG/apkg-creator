@@ -52,7 +52,7 @@ body {
 }
 
 dialog#deckDialog[open] {
-    display: flex;
+    display: grid;
 }
 
 dialog#parseDialog[open] {
@@ -202,4 +202,44 @@ dialog#parseDialog[open] {
 
 #btns > button {
     display: block;
+}
+
+#fieldlist.firstrun {
+    margin: 5px auto;
+    padding: 5px;
+    border: none;
+    color: red;
+    font-size: 3em;
+    text-align: center;
+}
+
+table.firstrun {
+    border: none;
+}
+#firstRunBtn {
+    all: unset;
+    cursor: pointer;
+    width: 100%;
+    user-select: none;
+}
+
+#firstRunBtn:hover,
+#firstRunBtn:focus {
+    background-color: #ccc;
+}
+
+#firstRunBtn:focus {
+    outline: initial;
+    border: initial;
+}
+
+table.firstrun {
+    width: 100%;
+}
+
+#deckDialog::before {
+    --cols: 5;
+    content: attr(data-header);
+    grid-row: 1 / span 1;
+    grid-column: 1 / span var(--cols);
 }
