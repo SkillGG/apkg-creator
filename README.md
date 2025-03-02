@@ -15,8 +15,6 @@ Features:
 
 TODO:
 
--   Remove deck
 -   Edit note button
 -   Model editing
 -   Import from .apkg
--   Remove default deck
